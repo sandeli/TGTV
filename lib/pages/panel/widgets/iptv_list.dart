@@ -171,7 +171,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       title: '我的收藏',
                       subtitle: '${favoriteList.length} 个频道',
                       isSelected: isSelected,
-                      isFocused: !_channelsFocused,
+                      isFocused: _categoryFocusNode.hasFocus,
                     );
                   }
                   if (position.row == sourceRow) {
@@ -179,7 +179,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.swap_horiz,
                       label: '切换源',
                       isSelected: isSelected,
-                      isFocused: !_channelsFocused,
+                      isFocused: _categoryFocusNode.hasFocus,
                     );
                   }
                   if (position.row == settingsRow) {
@@ -187,7 +187,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.settings,
                       label: '设置',
                       isSelected: isSelected,
-                      isFocused: !_channelsFocused,
+                      isFocused: _categoryFocusNode.hasFocus,
                     );
                   }
 
@@ -197,7 +197,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                     return _buildEmptyItem(
                       '暂无分类',
                       isSelected,
-                      isFocused: !_channelsFocused,
+                      isFocused: _categoryFocusNode.hasFocus,
                       unselectedFill: AppTheme.categoryMenuTileFill,
                     );
                   }
@@ -205,7 +205,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                     title: group.name,
                     subtitle: '${group.list.length} 个频道',
                     isSelected: isSelected,
-                    isFocused: !_channelsFocused,
+                    isFocused: _categoryFocusNode.hasFocus,
                   );
                 },
               ),
@@ -277,14 +277,15 @@ class _PanelIptvListState extends State<PanelIptvList> {
                               return _buildEmptyItem(
                                 _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
                                 isSelected,
-                                isFocused: _channelsFocused,
+                                isFocused: _channelFocusNode.hasFocus,
                                 unselectedFill: AppTheme.channelMenuTileFill,
+                                squareCorners: true,
                               );
                             }
                             return _buildIptvItem(
                               iptv,
                               isSelected,
-                              isFocused: _channelsFocused,
+                              isFocused: _channelFocusNode.hasFocus,
                             );
                           },
                         );
@@ -320,6 +321,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required bool isSelected,
     required bool isFocused,
     required Color unselectedFill,
+    bool squareCorners = false,
     required Widget child,
   }) {
     final showFocus = isSelected && isFocused;
@@ -327,9 +329,10 @@ class _PanelIptvListState extends State<PanelIptvList> {
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: isSelected ? AppTheme.tileFill(context, true) : unselectedFill,
-        borderRadius: BorderRadius.circular(10).r,
+        borderRadius:
+            squareCorners ? BorderRadius.zero : BorderRadius.circular(10).r,
         border: Border.all(
-          color: showFocus ? AppTheme.dialogFocus : Colors.transparent,
+          color: showFocus ? AppTheme.iptvMenuFocus : Colors.transparent,
           width: 3,
         ),
         boxShadow: showFocus
@@ -413,11 +416,13 @@ class _PanelIptvListState extends State<PanelIptvList> {
     bool isSelected, {
     required bool isFocused,
     required Color unselectedFill,
+    bool squareCorners = false,
   }) {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
       unselectedFill: unselectedFill,
+      squareCorners: squareCorners,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -441,6 +446,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
       isSelected: isSelected,
       isFocused: isFocused,
       unselectedFill: AppTheme.channelMenuTileFill,
+      squareCorners: true,
       child: Row(
         children: [
           SizedBox(
