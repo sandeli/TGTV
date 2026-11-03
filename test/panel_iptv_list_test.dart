@@ -166,6 +166,36 @@ void main() {
     expect(decoration.boxShadow, isNotEmpty);
   });
 
+  testWidgets('一级和二级菜单使用更深且不同的低透明度配色', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == AppTheme.categoryMenuSurface,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == AppTheme.channelMenuSurface,
+      ),
+      findsOneWidget,
+    );
+
+    final categoryDecoration = _tileDecoration(tester, '体育组');
+    final channelDecoration = _tileDecoration(tester, '新闻频道二');
+    expect(categoryDecoration.color, AppTheme.categoryMenuTileFill);
+    expect(channelDecoration.color, AppTheme.channelMenuTileFill);
+    expect(categoryDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
+    expect(channelDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
+    expect(categoryDecoration.color, isNot(channelDecoration.color));
+  });
+
   testWidgets('遥控器左右键可切换到频道栏并选台', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());

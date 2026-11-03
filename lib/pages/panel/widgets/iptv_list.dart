@@ -104,8 +104,9 @@ class _PanelIptvListState extends State<PanelIptvList> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
+            Container(
               width: leftWidth,
+              color: AppTheme.categoryMenuSurface,
               child: TwoDimensionListView(
                 key: const ValueKey('category-list'),
                 focusNode: _categoryFocusNode,
@@ -197,6 +198,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       '暂无分类',
                       isSelected,
                       isFocused: !_channelsFocused,
+                      unselectedFill: AppTheme.categoryMenuTileFill,
                     );
                   }
                   return _buildCategoryItem(
@@ -214,75 +216,82 @@ class _PanelIptvListState extends State<PanelIptvList> {
               color: AppTheme.fgFaded(context, 0.22),
             ),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSectionHeader(
-                    '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
-                  ),
-                  Expanded(
-                    child:
-                        LayoutBuilder(builder: (context, channelConstraints) {
-                      return TwoDimensionListView(
-                        key: ValueKey(
-                            'channel-list-${_showFavorites ? 'favorites' : selectedGroup?.name ?? 'empty'}'),
-                        focusNode: _channelFocusNode,
-                        autofocus: _channelsFocused,
-                        verticalLayout: true,
-                        viewportHeight: channelConstraints.maxHeight,
-                        initialPosition: (row: initialChannelPosition, col: 0),
-                        size: (rowHeight: 82.h, colWidth: 0),
-                        scrollOffset: (row: 0, col: 0),
-                        gap: (row: 8.h, col: 4.h),
-                        headerHeightBuilder: (_) => 0,
-                        itemCount: (
-                          row: channelList.isEmpty ? 1 : channelList.length,
-                          col: (_) => 1,
-                        ),
-                        onArrowLeft: _focusCategories,
-                        onSelect: (position) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) return;
-                          iptvStore.currentIptv = iptv;
-                          Navigator.pop(context);
-                        },
-                        onLongSelect: (position) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) return;
-                          iptvStore.toggleFavorite(iptv).then((nowFavorite) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context)
-                              ..clearSnackBars()
-                              ..showSnackBar(SnackBar(
-                                content: Text(nowFavorite
-                                    ? '已收藏「${iptv.name}」'
-                                    : '已取消收藏「${iptv.name}」'),
-                                duration: const Duration(milliseconds: 1200),
-                              ));
-                          });
-                        },
-                        itemBuilder: (context, position, isSelected) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) {
-                            return _buildEmptyItem(
-                              _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
+              child: Container(
+                color: AppTheme.channelMenuSurface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSectionHeader(
+                      '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
+                    ),
+                    Expanded(
+                      child:
+                          LayoutBuilder(builder: (context, channelConstraints) {
+                        return TwoDimensionListView(
+                          key: ValueKey(
+                              'channel-list-${_showFavorites ? 'favorites' : selectedGroup?.name ?? 'empty'}'),
+                          focusNode: _channelFocusNode,
+                          autofocus: _channelsFocused,
+                          verticalLayout: true,
+                          viewportHeight: channelConstraints.maxHeight,
+                          initialPosition: (
+                            row: initialChannelPosition,
+                            col: 0
+                          ),
+                          size: (rowHeight: 82.h, colWidth: 0),
+                          scrollOffset: (row: 0, col: 0),
+                          gap: (row: 8.h, col: 4.h),
+                          headerHeightBuilder: (_) => 0,
+                          itemCount: (
+                            row: channelList.isEmpty ? 1 : channelList.length,
+                            col: (_) => 1,
+                          ),
+                          onArrowLeft: _focusCategories,
+                          onSelect: (position) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) return;
+                            iptvStore.currentIptv = iptv;
+                            Navigator.pop(context);
+                          },
+                          onLongSelect: (position) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) return;
+                            iptvStore.toggleFavorite(iptv).then((nowFavorite) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context)
+                                ..clearSnackBars()
+                                ..showSnackBar(SnackBar(
+                                  content: Text(nowFavorite
+                                      ? '已收藏「${iptv.name}」'
+                                      : '已取消收藏「${iptv.name}」'),
+                                  duration: const Duration(milliseconds: 1200),
+                                ));
+                            });
+                          },
+                          itemBuilder: (context, position, isSelected) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) {
+                              return _buildEmptyItem(
+                                _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
+                                isSelected,
+                                isFocused: _channelsFocused,
+                                unselectedFill: AppTheme.channelMenuTileFill,
+                              );
+                            }
+                            return _buildIptvItem(
+                              iptv,
                               isSelected,
                               isFocused: _channelsFocused,
                             );
-                          }
-                          return _buildIptvItem(
-                            iptv,
-                            isSelected,
-                            isFocused: _channelsFocused,
-                          );
-                        },
-                      );
-                    }),
-                  ),
-                ],
+                          },
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -310,13 +319,14 @@ class _PanelIptvListState extends State<PanelIptvList> {
   Widget _buildTile({
     required bool isSelected,
     required bool isFocused,
+    required Color unselectedFill,
     required Widget child,
   }) {
     final showFocus = isSelected && isFocused;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: AppTheme.tileFill(context, isSelected),
+        color: isSelected ? AppTheme.tileFill(context, true) : unselectedFill,
         borderRadius: BorderRadius.circular(10).r,
         border: Border.all(
           color: showFocus ? AppTheme.dialogFocus : Colors.transparent,
@@ -345,6 +355,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
+      unselectedFill: AppTheme.categoryMenuTileFill,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -377,6 +388,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
+      unselectedFill: AppTheme.categoryMenuTileFill,
       child: Row(
         children: [
           Icon(icon,
@@ -400,10 +412,12 @@ class _PanelIptvListState extends State<PanelIptvList> {
     String message,
     bool isSelected, {
     required bool isFocused,
+    required Color unselectedFill,
   }) {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
+      unselectedFill: unselectedFill,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -426,6 +440,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
+      unselectedFill: AppTheme.channelMenuTileFill,
       child: Row(
         children: [
           SizedBox(
