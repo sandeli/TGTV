@@ -57,6 +57,26 @@ Widget buildVerticalList() {
   );
 }
 
+Widget buildHorizontalList() {
+  return MaterialApp(
+    home: Scaffold(
+      body: SizedBox(
+        width: 480,
+        height: 300,
+        child: TwoDimensionListView(
+          size: (rowHeight: 200, colWidth: 100),
+          itemCount: (row: 2, col: (_) => 10),
+          itemBuilder: (context, position, isSelected) => SizedBox(
+            key: _key(position.row, position.col),
+            width: 100,
+            child: Text('${position.row}-${position.col}'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// 内容 offset，与组件内部 _getVerticalScrollOffset 的口径一致，这里独立算一遍用于交叉校验
 double expectedGroupOffset(int row) {
   var offset = _topPadding + row * _groupGap;
@@ -135,6 +155,40 @@ void main() {
         reason: '实际构建 ${_built.length} 条，疑似退化为全量渲染');
     // 首屏必须包含第一组的开头几条
     expect(_built, contains('0-0'));
+  });
+
+  testWidgets('竖向菜单滚动条不常驻显示，遥控器滚动仍有效', (tester) async {
+    await tester.pumpWidget(buildVerticalList());
+    await tester.pumpAndSettle();
+
+    var scrollbars =
+        tester.widgetList<Scrollbar>(find.byType(Scrollbar)).toList();
+    expect(scrollbars, hasLength(1));
+    expect(scrollbars.single.thumbVisibility, isFalse);
+
+    await pressDown(tester, _colCount);
+    expect(find.byKey(_key(1, 0)), findsOneWidget);
+    scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar)).toList();
+    expect(scrollbars.single.thumbVisibility, isFalse);
+  });
+
+  testWidgets('横向频道滚动条不常驻显示，遥控器滚动仍有效', (tester) async {
+    await tester.pumpWidget(buildHorizontalList());
+    await tester.pumpAndSettle();
+
+    var scrollbars =
+        tester.widgetList<Scrollbar>(find.byType(Scrollbar)).toList();
+    expect(scrollbars, hasLength(1));
+    expect(scrollbars.single.thumbVisibility, isFalse);
+
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    await tester.pumpAndSettle();
+    expect(find.byKey(_key(0, 5)), findsOneWidget);
+    scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar)).toList();
+    expect(scrollbars.single.thumbVisibility, isFalse);
   });
 
   testWidgets('分组头与第一个条目的位置符合预期的排布', (tester) async {

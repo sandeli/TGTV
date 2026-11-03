@@ -321,7 +321,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     final child = widget.verticalLayout
         ? Scrollbar(
             controller: _verticalScrollController,
-            thumbVisibility: true,
+            thumbVisibility: false,
             child: list)
         : list;
     return _buildKeyboardListener(child: child);
@@ -404,7 +404,9 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     );
     if (scrollController != null) {
       return Scrollbar(
-          controller: scrollController, thumbVisibility: true, child: listView);
+          controller: scrollController,
+          thumbVisibility: false,
+          child: listView);
     }
     return listView;
   }
