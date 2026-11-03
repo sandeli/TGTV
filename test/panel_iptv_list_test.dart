@@ -58,6 +58,21 @@ Widget _app({bool usePanelPage = false}) {
   );
 }
 
+BoxDecoration _tileDecoration(WidgetTester tester, String label) {
+  final tile = tester.widget<Container>(
+    find
+        .ancestor(
+          of: find.text(label),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first,
+  );
+  return tile.decoration! as BoxDecoration;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -124,6 +139,31 @@ void main() {
     expect(find.text('二级菜单 · 体育组'), findsOneWidget);
     expect(find.text('体育频道一'), findsOneWidget);
     expect(find.text('新闻频道一'), findsNothing);
+  });
+
+  testWidgets('当前焦点在一级分类和二级频道时都有醒目的描边', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    var decoration = _tileDecoration(tester, '新闻组');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+
+    decoration = _tileDecoration(tester, '新闻频道一');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    decoration = _tileDecoration(tester, '新闻频道二');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
   });
 
   testWidgets('遥控器左右键可切换到频道栏并选台', (tester) async {

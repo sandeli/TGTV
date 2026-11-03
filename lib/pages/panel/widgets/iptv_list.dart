@@ -170,6 +170,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       title: '我的收藏',
                       subtitle: '${favoriteList.length} 个频道',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
                   if (position.row == sourceRow) {
@@ -177,6 +178,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.swap_horiz,
                       label: '切换源',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
                   if (position.row == settingsRow) {
@@ -184,18 +186,24 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.settings,
                       label: '设置',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
 
                   final group =
                       groups.elementAtOrNull(position.row - _firstGroupRow);
                   if (group == null) {
-                    return _buildEmptyItem('暂无分类', isSelected);
+                    return _buildEmptyItem(
+                      '暂无分类',
+                      isSelected,
+                      isFocused: !_channelsFocused,
+                    );
                   }
                   return _buildCategoryItem(
                     title: group.name,
                     subtitle: '${group.list.length} 个频道',
                     isSelected: isSelected,
+                    isFocused: !_channelsFocused,
                   );
                 },
               ),
@@ -262,9 +270,14 @@ class _PanelIptvListState extends State<PanelIptvList> {
                             return _buildEmptyItem(
                               _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
                               isSelected,
+                              isFocused: _channelsFocused,
                             );
                           }
-                          return _buildIptvItem(iptv, isSelected);
+                          return _buildIptvItem(
+                            iptv,
+                            isSelected,
+                            isFocused: _channelsFocused,
+                          );
                         },
                       );
                     }),
@@ -294,12 +307,30 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildTile({required bool isSelected, required Widget child}) {
+  Widget _buildTile({
+    required bool isSelected,
+    required bool isFocused,
+    required Widget child,
+  }) {
+    final showFocus = isSelected && isFocused;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: AppTheme.tileFill(context, isSelected),
         borderRadius: BorderRadius.circular(10).r,
+        border: Border.all(
+          color: showFocus ? AppTheme.dialogFocus : Colors.transparent,
+          width: 3,
+        ),
+        boxShadow: showFocus
+            ? const [
+                BoxShadow(
+                  color: Color(0xF0000000),
+                  blurRadius: 0,
+                  spreadRadius: 2,
+                ),
+              ]
+            : const [],
       ),
       child: child,
     );
@@ -309,9 +340,11 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required String title,
     required String subtitle,
     required bool isSelected,
+    required bool isFocused,
   }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -339,9 +372,11 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required IconData icon,
     required String label,
     required bool isSelected,
+    required bool isFocused,
   }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
       child: Row(
         children: [
           Icon(icon,
@@ -361,9 +396,14 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildEmptyItem(String message, bool isSelected) {
+  Widget _buildEmptyItem(
+    String message,
+    bool isSelected, {
+    required bool isFocused,
+  }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -377,10 +417,15 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildIptvItem(Iptv iptv, bool isSelected) {
+  Widget _buildIptvItem(
+    Iptv iptv,
+    bool isSelected, {
+    required bool isFocused,
+  }) {
     final color = AppTheme.tileText(context, isSelected);
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
       child: Row(
         children: [
           SizedBox(
