@@ -1,4 +1,18 @@
-import 'package:video_player_example/common/index.dart';
+import '../utils/prefs.dart';
+import '../values/constants.dart';
+
+enum IptvDecodeMode { automatic, hardware, software }
+
+extension IptvDecodeModeInfo on IptvDecodeMode {
+  String get label => switch (this) {
+        IptvDecodeMode.automatic => '自动',
+        IptvDecodeMode.hardware => '硬解',
+        IptvDecodeMode.software => '软解',
+      };
+
+  IptvDecodeMode get next =>
+      IptvDecodeMode.values[(index + 1) % IptvDecodeMode.values.length];
+}
 
 /// 直播设置
 enum IptvSetting {
@@ -7,6 +21,9 @@ enum IptvSetting {
 
   /// 换台反转
   channelChangeFlip,
+
+  /// 视频解码方式（自动、硬解或软解）
+  decodeMode,
 
   /// 直播源缓存保持时间
   iptvSourceCacheKeepTime,
@@ -58,6 +75,17 @@ class IptvSettings {
       PrefsUtil.getBool(IptvSetting.channelChangeFlip.toString()) ?? false;
   static set channelChangeFlip(bool value) =>
       PrefsUtil.setBool(IptvSetting.channelChangeFlip.toString(), value);
+
+  static IptvDecodeMode get decodeMode {
+    final saved = PrefsUtil.getString(IptvSetting.decodeMode.toString());
+    return IptvDecodeMode.values.firstWhere(
+      (mode) => mode.name == saved,
+      orElse: () => IptvDecodeMode.automatic,
+    );
+  }
+
+  static set decodeMode(IptvDecodeMode value) =>
+      PrefsUtil.setString(IptvSetting.decodeMode.toString(), value.name);
 
   static int get iptvSourceCacheKeepTime =>
       PrefsUtil.getInt(IptvSetting.iptvSourceCacheKeepTime.toString()) ??

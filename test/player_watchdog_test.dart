@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fijkplayer_ijkfix/fijkplayer_ijkfix.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player_example/common/index.dart';
 
 /// 测试用的起播时限（真实计时，不走 fake clock，见下方说明）
@@ -34,10 +37,15 @@ class FakeIjkNative {
   /// false = prepared 之后迟迟不出画面（弱网 / GOP 长的源）
   bool emitVideoRenderStart = true;
 
-  MockStreamHandlerEventSink? _events;
+  final List<int> mediacodecValues = [];
+  final List<int> createdPlayerIds = [];
+  final List<int> releasedPlayerIds = [];
+  final List<int> stopPlayerIds = [];
+  int _nextPlayerId = 1;
+  Completer<void>? stopGate;
+  Completer<void>? stopRequested;
 
-  EventChannel get _eventChannel =>
-      const EventChannel('befovy.com/fijkplayer/event/1');
+  MockStreamHandlerEventSink? _events;
 
   void install() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -46,25 +54,46 @@ class FakeIjkNative {
 
     messenger.setMockMethodCallHandler(
       const MethodChannel('befovy.com/fijk'),
-      (call) async => call.method == 'createPlayer' ? 1 : null,
-    );
-    messenger.setMockStreamHandler(
-      _eventChannel,
-      // 注意：这里必须用「语块体」——任何 `=> 有值表达式` 的写法都会把表达式的值
-      // 当作 'listen' 通道调用的返回值回给 Dart 侧，而赋值表达式的值正是 sink 本身，
-      // 会被 StandardMethodCodec 判为 Invalid argument。
-      _FakeEventStream((args, events) {
-        _events = events;
-      }),
-    );
-    messenger.setMockMethodCallHandler(
-      const MethodChannel('befovy.com/fijkplayer/1'),
-      _handlePlayerCall,
+      (call) async {
+        if (call.method == 'createPlayer') {
+          final id = _nextPlayerId++;
+          createdPlayerIds.add(id);
+          messenger.setMockStreamHandler(
+            EventChannel('befovy.com/fijkplayer/event/$id'),
+            // 这里必须使用代码块，避免把赋值表达式的值回传为 listen 结果。
+            _FakeEventStream((args, events) {
+              _events = events;
+            }),
+          );
+          messenger.setMockMethodCallHandler(
+            MethodChannel('befovy.com/fijkplayer/$id'),
+            (playerCall) => _handlePlayerCall(playerCall, id),
+          );
+          return id;
+        }
+        if (call.method == 'releasePlayer') {
+          final arguments = call.arguments as Map;
+          releasedPlayerIds.add(arguments['pid'] as int);
+        }
+        return null;
+      },
     );
   }
 
-  Future<Object?> _handlePlayerCall(MethodCall call) async {
+  Future<Object?> _handlePlayerCall(MethodCall call, int playerId) async {
     switch (call.method) {
+      case 'applyOptions':
+        final options = call.arguments as Map;
+        final playerOptions = options[FijkOption.playerCategory] as Map;
+        final mediacodec = playerOptions['mediacodec'];
+        if (mediacodec is int) mediacodecValues.add(mediacodec);
+        break;
+      case 'setOption':
+        final arguments = call.arguments as Map;
+        if (arguments['key'] == 'mediacodec' && arguments['long'] is int) {
+          mediacodecValues.add(arguments['long'] as int);
+        }
+        break;
       case 'setDataSource':
         // 真实 native 也是这么回报的
         _emitState(FijkState.idle, FijkState.initialized);
@@ -79,6 +108,13 @@ class FakeIjkNative {
         if (!stuckAfterPrepareAsync && emitVideoRenderStart) {
           _events?.success({'event': 'rendering_start', 'type': 'video'});
         }
+        break;
+      case 'stop':
+        stopPlayerIds.add(playerId);
+        final requested = stopRequested;
+        if (requested != null && !requested.isCompleted) requested.complete();
+        final gate = stopGate;
+        if (gate != null) await gate.future;
         break;
     }
     await _deliverEvents();
@@ -110,6 +146,10 @@ class FakeIjkNative {
   /// 送达要过好几跳，调用方记得 [deliver] 一下。
   void emitFreeze(bool buffering) {
     _events?.success({'event': 'freeze', 'value': buffering});
+  }
+
+  void emitError() {
+    _emitState(FijkState.prepared, FijkState.error);
   }
 
   /// 推缓冲进度，对应 native 的 BUFFERING_UPDATE。用来表达"数据在进"。
@@ -150,8 +190,14 @@ void main() {
   late FakeIjkNative native;
   final stores = <PlayerStore>[];
 
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await PrefsUtil.init();
+  });
+
   setUp(() {
     native = FakeIjkNative()..install();
+    IptvSettings.decodeMode = IptvDecodeMode.automatic;
     PlayerStoreBase.startWatchdogTimeout = _watchdogTimeout;
     PlayerStoreBase.freezeGraceTimeout = _freezeGrace;
     PlayerStoreBase.startStallTimeout = _stallTimeout;
@@ -168,12 +214,79 @@ void main() {
     PlayerStoreBase.startStallTimeout = _realStallTimeout;
   });
 
-  PlayerStore _createStore({required VoidCallback onError, VoidCallback? onFreeze}) {
+  PlayerStore _createStore(
+      {required VoidCallback onError, VoidCallback? onFreeze}) {
     final store = PlayerStore();
     store.initPlayer(onError: onError, onFreeze: onFreeze ?? () {});
     stores.add(store);
     return store;
   }
+
+  test('旧播放器正在释放时重建会等待，且不会释放新实例', () async {
+    native.stuckAfterPrepareAsync = false;
+    final store = _createStore(onError: () {});
+    await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
+    final oldPlayerId = await store.player.id;
+
+    final stopGate = Completer<void>();
+    native.stopGate = stopGate;
+    native.stopRequested = Completer<void>();
+    final dispose = store.disposePlayer();
+    late Future<void> reinit;
+
+    try {
+      await native.stopRequested!.future.timeout(const Duration(seconds: 2));
+      reinit = store.reinitPlayer();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(native.createdPlayerIds, [oldPlayerId]);
+    } finally {
+      if (!stopGate.isCompleted) stopGate.complete();
+    }
+
+    await dispose;
+    await reinit;
+    final newPlayerId = await store.player.id;
+    expect(newPlayerId, isNot(oldPlayerId));
+    expect(native.releasedPlayerIds, contains(oldPlayerId));
+    expect(native.releasedPlayerIds, isNot(contains(newPlayerId)));
+  });
+
+  test('强制硬解与软解不受自动回退覆盖，自动模式仍可回退', () async {
+    native.stuckAfterPrepareAsync = false;
+    native.emitVideoRenderStart = false;
+    final store = _createStore(onError: () {});
+    const url = 'http://127.0.0.1:1/live.m3u8';
+
+    IptvSettings.decodeMode = IptvDecodeMode.hardware;
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 1);
+
+    IptvSettings.decodeMode = IptvDecodeMode.software;
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+    native.emitError();
+    await native.deliver();
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+
+    IptvSettings.decodeMode = IptvDecodeMode.automatic;
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+  });
 
   test('起播超时：native 卡在 asyncPreparing 时必须有人把它判死', () async {
     var errorCount = 0;
@@ -185,7 +298,8 @@ void main() {
     expect(errorCount, 0);
 
     // 还没到超时
-    await Future<void>.delayed(_watchdogTimeout - const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout - const Duration(milliseconds: 300));
     expect(errorCount, 0);
 
     // 超过看门狗时限：上层要收到 error 才会去切下一个备用源
@@ -208,7 +322,8 @@ void main() {
     expect(store.state, PlayerState.playing);
 
     // 远超过看门狗时限之后，也不该冒出额外的 error
-    await Future<void>.delayed(_watchdogTimeout * 2 + const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout * 2 + const Duration(milliseconds: 300));
     expect(errorCount, 0);
   });
 
@@ -219,7 +334,8 @@ void main() {
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
     await store.disposePlayer();
 
-    await Future<void>.delayed(_watchdogTimeout * 2 + const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout * 2 + const Duration(milliseconds: 300));
     expect(
       errorCount,
       0,
@@ -232,8 +348,7 @@ void main() {
     native.stuckAfterPrepareAsync = false;
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
     expect(freezeCount, 0);
@@ -243,7 +358,8 @@ void main() {
     await native.deliver();
 
     // 还没到宽限
-    await Future<void>.delayed(_freezeGrace - const Duration(milliseconds: 200));
+    await Future<void>.delayed(
+        _freezeGrace - const Duration(milliseconds: 200));
     expect(freezeCount, 0);
 
     // 宽限一过立刻判死。旧逻辑靠 5 秒轮询 + 两次采样，这里要等到 10 秒
@@ -259,8 +375,7 @@ void main() {
     native.stuckAfterPrepareAsync = false;
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
 
@@ -287,8 +402,7 @@ void main() {
     PlayerStoreBase.startWatchdogTimeout = const Duration(seconds: 30);
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
 
@@ -326,6 +440,33 @@ void main() {
       errorCount,
       1,
       reason: '缓冲一动不动说明根本拿不到数据，不该让用户白等满看门狗',
+    );
+  });
+
+  test('重复相同缓冲位置不刷新起播停滞计时', () async {
+    native.stuckAfterPrepareAsync = false;
+    native.emitVideoRenderStart = false;
+    PlayerStoreBase.startWatchdogTimeout = const Duration(seconds: 30);
+
+    var errorCount = 0;
+    final store = _createStore(onError: () => errorCount++);
+    await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
+    native.emitFreeze(true);
+    await native.deliver();
+    native.emitBufferPos(100);
+    await native.deliver();
+
+    // native 持续推同一个 head 只是重复通知，不代表真的有新数据到达。
+    for (var i = 0; i < 7; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      native.emitBufferPos(100);
+      await native.deliver();
+    }
+
+    expect(
+      errorCount,
+      1,
+      reason: '缓冲 head 没有增长时应触发一次停滞判定，不应被重复事件续命',
     );
   });
 

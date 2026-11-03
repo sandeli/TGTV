@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:mobx/mobx.dart';
 import 'package:video_player_example/common/index.dart';
 
 import '../../../common/widgets/two_dimension_list_view.dart';
+import 'qr_import_page.dart';
 
 class SettingItem {
   final String title;
@@ -38,7 +41,8 @@ class _SettingsMainState extends State<SettingsMain> {
     required String title,
     required String hint,
     required String initialValue,
-    required ValueChanged<String> onSave,
+    required FutureOr<void> Function(String) onSave,
+    Stream<String>? draftValues,
     String? subtitle,
     List<TvDialogButton> extraButtons = const <TvDialogButton>[],
     double maxWidth = 500,
@@ -52,6 +56,7 @@ class _SettingsMainState extends State<SettingsMain> {
         hint: hint,
         initialValue: initialValue,
         onSave: onSave,
+        draftValues: draftValues,
         extraButtons: extraButtons,
         maxWidth: maxWidth,
         fontSize: fontSize,
@@ -65,17 +70,46 @@ class _SettingsMainState extends State<SettingsMain> {
       subtitle: '支持 M3U、TXT（#genre#）和 XSPF；可用手机扫码导入链接',
       hint: '输入订阅链接',
       initialValue: IptvSettings.customIptvSource,
+      draftValues: HttpServerUtil.playlistDrafts,
       maxWidth: 700,
       fontSize: 24,
       extraButtons: [
         TvDialogButton(label: '二维码', onPressed: _showServerQrcode),
       ],
-      onSave: (value) {
-        IptvSettings.customIptvSource = value.trim();
+      onSave: (value) async {
+        final source = value.trim();
+        final previousSource = IptvSettings.customIptvSource;
+        final previousCacheTime = IptvSettings.customIptvSourceCacheTime;
+        final previousCacheUrl = IptvSettings.customIptvSourceCacheUrl;
+        final previousEpgHash = IptvSettings.epgCacheHash;
+        final previousGroups = List<IptvGroup>.of(iptvStore.iptvGroupList);
+        final previousStatus = iptvStore.listStatus.value;
+        IptvSettings.customIptvSource = source;
         IptvSettings.epgCacheHash = 0;
-        iptvStore.refreshIptvList().then((_) {
-          if (mounted) setState(() {});
-        });
+        try {
+          await iptvStore.refreshIptvList();
+          if (source.isNotEmpty &&
+              (iptvStore.listStatus.value != IptvListStatus.ready ||
+                  iptvStore.iptvList.isEmpty)) {
+            throw const TvDialogSaveException(
+              '无法获取有效播放列表，请检查链接格式和网络后重试。',
+            );
+          }
+        } catch (error) {
+          IptvSettings.customIptvSource = previousSource;
+          IptvSettings.customIptvSourceCacheTime = previousCacheTime;
+          IptvSettings.customIptvSourceCacheUrl = previousCacheUrl;
+          IptvSettings.epgCacheHash = previousEpgHash;
+          runInAction(() {
+            iptvStore.iptvGroupList = previousGroups;
+            iptvStore.listStatus.value = previousStatus;
+          });
+          if (error is TvDialogSaveException) rethrow;
+          throw const TvDialogSaveException(
+            '无法加载播放列表，请检查链接内容和网络后重试。',
+          );
+        }
+        if (mounted) setState(() {});
       },
     );
   }
@@ -87,55 +121,17 @@ class _SettingsMainState extends State<SettingsMain> {
       return;
     }
 
-    final fg = AppTheme.fg(context);
-    await NavigatorUtil.push(
-      context,
-      TvModalScaffold(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('扫码导入订阅链接', style: AppTheme.text(fg, 36.sp)),
-              SizedBox(height: 12.h),
-              Text(
-                HttpServerUtil.serverUrl,
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 24.sp),
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '手机与电视连接同一 Wi-Fi；网页输入框为空，手动粘贴 M3U / TXT / XSPF 链接。\n订阅及设置仅保存在电视本机；此页无配对码，仅在二维码页打开时临时提供播放列表导入。请使用可信 Wi-Fi。',
-                textAlign: TextAlign.center,
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 20.sp),
-              ),
-              SizedBox(height: 24.h),
-              Container(
-                decoration: BoxDecoration(
-                  color: fg,
-                  borderRadius: BorderRadius.circular(20).r,
-                ),
-                padding: const EdgeInsets.all(8),
-                child: SizedBox(
-                  height: 300.h,
-                  width: 300.h,
-                  child: PrettyQrView.data(
-                    data: HttpServerUtil.serverUrl,
-                    decoration: PrettyQrDecoration(
-                      shape: PrettyQrSmoothSymbol(color: AppTheme.bg(context)),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 24.h),
-              Text(
-                '点击空白处或按 ESC 返回',
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.5), 20.sp),
-              ),
-            ],
-          ),
+    try {
+      await NavigatorUtil.push(
+        context,
+        QrImportPage(
+          serverUrl: HttpServerUtil.serverUrl,
+          draftValues: HttpServerUtil.playlistDrafts,
         ),
-      ),
-    );
-    await HttpServerUtil.close();
+      );
+    } finally {
+      await HttpServerUtil.close();
+    }
   }
 
   @override
@@ -146,18 +142,15 @@ class _SettingsMainState extends State<SettingsMain> {
 
   @override
   Widget build(BuildContext context) {
-    final screen = MediaQuery.of(context).size;
-    final isPhone = screen.shortestSide < 600;
-    final itemHeight = isPhone ? 160.0 : 190.w;
-    final itemWidth =
-        isPhone ? (screen.width - 32).clamp(280.0, 520.0).toDouble() : 400.w;
+    const itemHeight = 190.0;
+    final itemWidth = 400.w;
 
     return SizedBox(
-      height: itemHeight + (isPhone ? 12 : 20.h),
+      height: itemHeight + 20.h,
       child: TwoDimensionListView(
         size: (rowHeight: itemHeight, colWidth: itemWidth),
         scrollOffset: (row: 0, col: -1),
-        gap: (row: 20.h, col: isPhone ? 12 : 20.w),
+        gap: (row: 20.h, col: 20.w),
         itemCount: (row: 1, col: (_) => _settingItemList.length),
         onSelect: (position) => setState(() {
           _settingItemList.elementAtOrNull(position.col)?.onTap();
@@ -173,10 +166,9 @@ class _SettingsMainState extends State<SettingsMain> {
 
   Widget _buildSettingItem(SettingItem item, bool isSelected) {
     final textColor = AppTheme.tileText(context, isSelected);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return Container(
-      padding: EdgeInsets.all(isPhone ? 14 : 30).r,
+      padding: EdgeInsets.all(30).r,
       decoration: BoxDecoration(
         color:
             isSelected ? AppTheme.fg(context) : AppTheme.bgFaded(context, 0.8),
@@ -191,17 +183,17 @@ class _SettingsMainState extends State<SettingsMain> {
             children: [
               Text(
                 item.title,
-                style: AppTheme.text(textColor, isPhone ? 18.sp : 30.sp),
+                style: AppTheme.text(textColor, 30.sp),
               ),
               Text(
                 item.value(),
-                style: AppTheme.text(textColor, isPhone ? 16.sp : 30.sp),
+                style: AppTheme.text(textColor, 30.sp),
               ),
             ],
           ),
           Text(
             item.description(),
-            style: AppTheme.text(textColor, isPhone ? 13.sp : 24.sp),
+            style: AppTheme.text(textColor, 24.sp),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -221,6 +213,18 @@ class _SettingsMainState extends State<SettingsMain> {
         onTap: () {
           IptvSettings.channelChangeFlip = !IptvSettings.channelChangeFlip;
           setState(() {});
+        },
+      ),
+      SettingItem(
+        title: '解码方式',
+        value: () => IptvSettings.decodeMode.label,
+        description: () => '点击轮换自动/硬解/软解；切换后立即重播当前频道',
+        onTap: () {
+          IptvSettings.decodeMode = IptvSettings.decodeMode.next;
+          final current = iptvStore.currentIptv;
+          if (current.url.isNotEmpty) {
+            unawaited(GetIt.I<PlayerStore>().playIptv(current));
+          }
         },
       ),
       SettingItem(

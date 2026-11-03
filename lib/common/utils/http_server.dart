@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
 import 'package:video_player_example/common/index.dart';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as io;
@@ -17,6 +16,11 @@ class HttpServerUtil {
   static HttpServer? _server;
   static String serverUrl = 'http://0.0.0.0:${Constants.httpServerPort}';
   static const _maxRequestLength = 8192;
+  static final StreamController<String> _playlistDraftController =
+      StreamController<String>.broadcast();
+
+  /// 手机提交的有效 HTTP(S) 链接草稿；只有电视端按“保存”才会写入并加载。
+  static Stream<String> get playlistDrafts => _playlistDraftController.stream;
 
   /// 启动局域网导入服务。仅绑定到优先选出的设备地址，不监听所有网卡。
   static Future<void> init() async {
@@ -45,7 +49,7 @@ class HttpServerUtil {
       }
     });
 
-    // 唯一可写接口：只保存用户在扫码页手动提交的 HTTP(S) 播放列表链接。
+    // 唯一可写接口：只把用户提交的 HTTP(S) 链接作为草稿交给电视端编辑框。
     app.post('/api/playlist', (request) async {
       final origin = request.headers['origin'];
       if (origin != null && origin != Uri.parse(serverUrl).origin) {
@@ -82,13 +86,11 @@ class HttpServerUtil {
               400, {'ok': false, 'message': '请输入有效的 HTTP 或 HTTPS 链接。'});
         }
 
-        IptvSettings.customIptvSource = sourceUrl;
-        IptvSettings.epgCacheHash = 0;
-        unawaited(_refreshAfterImport());
+        _playlistDraftController.add(sourceUrl);
 
         return _jsonResponse(200, {
           'ok': true,
-          'message': '链接已导入，设备正在获取播放列表。',
+          'message': '链接已回填到电视输入框，请在电视上按“保存”完成导入。',
         });
       } on FormatException {
         return _jsonResponse(400, {'ok': false, 'message': '请求内容无效，请检查链接后再试。'});
@@ -125,14 +127,6 @@ class HttpServerUtil {
         'cache-control': 'no-store',
       },
     );
-  }
-
-  static Future<void> _refreshAfterImport() async {
-    try {
-      await GetIt.I<IptvStore>().refreshIptvList();
-    } catch (e, st) {
-      _logger.handle(e, st);
-    }
   }
 
   static Future<String> _getLocalIPV4() async {

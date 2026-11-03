@@ -139,16 +139,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const colorScheme = ColorScheme.dark(background: Colors.black);
-    final view = WidgetsBinding.instance.platformDispatcher.views.first;
-    final screenSize = view.physicalSize / view.devicePixelRatio;
-    // 手机使用接近常见手机屏幕的设计稿，保证触控面板和设置字号不会按电视比例缩得过小。
-    // 电视/大屏继续沿用原 1920×1080 比例。
-    final isPhone = screenSize.shortestSide < 600;
-
     return ScreenUtilInit(
-      designSize: isPhone ? const Size(390, 844) : const Size(1920, 1080),
+      // 固定以电视画布缩放；不提供手机专用设计稿或窄屏布局。
+      designSize: const Size(1920, 1080),
       minTextAdapt: true,
-      splitScreenMode: true,
       child: RestartWidget(
         child: MaterialApp(
           title: 'TGTV',

@@ -9,12 +9,11 @@ import 'package:get_it/get_it.dart';
 import 'package:mobx/mobx.dart';
 import 'package:video_player_example/common/index.dart';
 import 'package:video_player_example/common/widgets/easy_keyboard_listener.dart';
-import 'package:video_player_example/common/widgets/mobile_touch_control_bar.dart';
 import 'package:video_player_example/pages/index.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
-import 'package:video_player_example/pages/panel/widgets/time.dart';
-import 'package:video_player_example/pages/iptv/widgets/network_speed_indicator.dart';
+import 'package:video_player_example/pages/iptv/widgets/playback_corner_overlay.dart';
+import 'package:video_player_example/pages/iptv/widgets/iptv_player_panel_builder.dart';
 import 'package:collection/collection.dart';
 
 import '../../common/utils/debounce.dart';
@@ -322,20 +321,17 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildGestureListener(
-        child: Container(
-          color: Colors.transparent,
-          child: Stack(
-            children: [
-              _buildPlayer(),
-              _buildPlaybackCornerOverlay(),
-              _buildIptvInfo(),
-              _buildKeyboardListener(),
-              _buildChannelSelect(),
-              _buildTouchControls(),
-              _buildListPlaceholder(),
-            ],
-          ),
+      body: Container(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            _buildPlayer(),
+            _buildPlaybackCornerOverlay(),
+            _buildIptvInfo(),
+            _buildKeyboardListener(),
+            _buildChannelSelect(),
+            _buildListPlaceholder(),
+          ],
         ),
       ),
     );
@@ -348,11 +344,16 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       descendantsAreFocusable: false,
       child: Observer(
         builder: (_) {
+          // FijkView 默认面板在无源时也会一直转圈。仅在已选择频道后恢复它，
+          // 这样真正起播或缓冲时仍会显示加载提示。
+          final hasPlaybackSource = iptvStore.currentIptv.url.isNotEmpty;
           return Center(
             child: AspectRatio(
               aspectRatio: playerStore.aspectRatio ?? 16 / 9,
               child: FijkView(
                 player: playerStore.player,
+                panelBuilder: iptvPlayerPanelBuilder(
+                    hasPlaybackSource: hasPlaybackSource),
                 fit: FijkFit.fill,
                 color: Colors.black,
               ),
@@ -371,50 +372,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
         return const SizedBox.shrink();
       }
 
-      return IgnorePointer(
-        child: Stack(
-          children: [
-            Positioned(
-              top: 20.h,
-              left: 20.w,
-              child: Container(
-                constraints: BoxConstraints(maxWidth: 0.42.sw),
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgFaded(context, 0.65),
-                  borderRadius: BorderRadius.circular(10).r,
-                ),
-                child: Observer(
-                  builder: (_) => Text(
-                    iptvStore.currentIptv.name,
-                    style: AppTheme.text(AppTheme.fg(context), 28.sp,
-                        weight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16.h,
-              right: 20.w,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgFaded(context, 0.65),
-                  borderRadius: BorderRadius.circular(10).r,
-                ),
-                child: const PanelTime(),
-              ),
-            ),
-            Positioned(
-              right: 20.w,
-              bottom: 20.h,
-              child: const NetworkSpeedIndicator(),
-            ),
-          ],
-        ),
-      );
+      return PlaybackCornerOverlay(stationName: iptvStore.currentIptv.name);
     });
   }
 
@@ -588,33 +546,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     );
   }
 
-  /// 手势事件监听
-  Widget _buildGestureListener({required Widget child}) {
-    return SwipeGestureDetector(
-      onSwipeUp: () => iptvStore.currentIptv = iptvStore.getNextIptv(),
-      onSwipeDown: () => iptvStore.currentIptv = iptvStore.getPrevIptv(),
-      // 左滑进入下一分组，右滑回到上一分组；与遥控器左右键一致。
-      onSwipeLeft: () => iptvStore.currentIptv = iptvStore.getNextGroupIptv(),
-      onSwipeRight: () => iptvStore.currentIptv = iptvStore.getPrevGroupIptv(),
-      child: GestureDetector(
-        // 单击必须「立刻」生效：只要同一个 GestureDetector 上还挂着 onDoubleTap，
-        // Flutter 就要等约 300ms 的双击判定窗口过去才敢回调 onTap，
-        // 表现为按 OK 开频道面板有明显迟滞。打开设置改由长按承担，
-        // 遥控器上另外保留了 settings / contextMenu / help 键这一路。
-        onTap: () {
-          _focusNode.requestFocus();
-          _openPanel();
-        },
-        onLongPress: () {
-          HapticFeedback.mediumImpact();
-          _focusNode.requestFocus();
-          _openSettings();
-        },
-        child: child,
-      ),
-    );
-  }
-
   /// 源列表尚未就绪时的占位层
   ///
   /// 以前拉不到源就是一块黑屏：既没有反馈也没有出路，用户只能一直等在那儿。
@@ -627,8 +558,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
 
         final failed = status == IptvListStatus.failed;
         final empty = status == IptvListStatus.empty;
-        final screen = MediaQuery.of(context).size;
-        final isPhone = screen.shortestSide < 600;
 
         return Positioned.fill(
           child: Container(
@@ -654,60 +583,26 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
                         : failed
                             ? '播放列表获取失败'
                             : '正在获取播放列表…',
-                    style: AppTheme.text(
-                        AppTheme.fg(context), isPhone ? 24.sp : 28.sp),
+                    style: AppTheme.text(AppTheme.fg(context), 28.sp),
                   ),
                   if (empty) ...[
                     SizedBox(height: 12.h),
                     SizedBox(
-                      width: isPhone ? screen.width * 0.9 : 1100.w,
+                      width: 1100.w,
                       child: Text(
-                        isPhone
-                            ? '点下方“设置”直接填写订阅链接；也可从同一 Wi-Fi 的手机浏览器手动粘贴 M3U、TXT（#genre#）或 XSPF 链接导入。'
-                            : '按菜单 / 设置键 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
+                        '用遥控器打开菜单 / 设置 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后在网页手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
                         textAlign: TextAlign.center,
                         style: AppTheme.text(
                             AppTheme.fgFaded(context, AppTheme.oTertiary),
-                            isPhone ? 14.sp : 22.sp),
+                            22.sp),
                       ),
-                    ),
-                    SizedBox(height: 18.h),
-                    FilledButton.icon(
-                      onPressed: _openSettings,
-                      icon: const Icon(Icons.playlist_add),
-                      label: Text(isPhone ? '设置并导入直播源' : '打开设置导入直播源'),
                     ),
                   ] else if (failed) ...[
                     SizedBox(height: 10.h),
                     Text(
-                      isPhone ? '检查订阅链接与网络后点击重试' : '检查订阅链接与网络后，按 OK 键重试',
+                      '检查订阅链接与网络后，按 OK 键重试',
                       style: AppTheme.text(
-                          AppTheme.fgFaded(context, AppTheme.oTertiary),
-                          isPhone ? 14.sp : 22.sp),
-                    ),
-                    SizedBox(height: 14.h),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: () => iptvStore.refreshIptvList(),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('重试'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _openSettings,
-                          icon: const Icon(Icons.settings),
-                          label: const Text('设置'),
-                        ),
-                      ],
-                    ),
-                  ] else if (isPhone) ...[
-                    SizedBox(height: 14.h),
-                    TextButton.icon(
-                      onPressed: _openSettings,
-                      icon: const Icon(Icons.settings),
-                      label: const Text('打开设置'),
+                          AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),
                     ),
                   ],
                 ],
@@ -730,24 +625,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     );
   }
 
-  /// 手机端可见的触控入口；电视继续使用屏幕原有 D-pad/OK/设置按键。
-  Widget _buildTouchControls() {
-    if (MediaQuery.of(context).size.shortestSide >= 600) {
-      return const SizedBox.shrink();
-    }
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 8,
-      child: MobileTouchControlBar(
-        onPrevious: _previousChannel,
-        onNext: _nextChannel,
-        onOpenChannels: _openPanel,
-        onOpenSettings: _openSettings,
-      ),
-    );
-  }
-
   bool panelOpened = false;
   bool settingsOpened = false;
 
@@ -765,18 +642,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   /// 先到期的那个会把当前频道的信息浮层提前收掉。这里每次重新计时前先取消旧的，
   /// 页面销毁时再统一取消，避免回调打在已销毁的 State 上。
   Timer? _infoHideTimer;
-
-  void _previousChannel() {
-    iptvStore.currentIptv = IptvSettings.channelChangeFlip
-        ? iptvStore.getNextIptv()
-        : iptvStore.getPrevIptv();
-  }
-
-  void _nextChannel() {
-    iptvStore.currentIptv = IptvSettings.channelChangeFlip
-        ? iptvStore.getPrevIptv()
-        : iptvStore.getNextIptv();
-  }
 
   void _openPanel() {
     // 列表还没就绪时面板是空的，此时 OK 键的语义换成"重试"

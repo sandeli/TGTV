@@ -42,15 +42,13 @@ class _PanelTimeState extends State<PanelTime> {
 
   @override
   Widget build(BuildContext context) {
-    final fg = AppTheme.fg(context);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(_dateLabel, style: AppTheme.text(fg, 20.sp)),
+        Text(_dateLabel, style: AppTheme.overlayText(20.sp)),
         Text(
           _timeLabel,
-          style: AppTheme.text(fg, 40.sp, weight: FontWeight.bold),
+          style: AppTheme.overlayText(40.sp, weight: FontWeight.bold),
         ),
       ],
     );
