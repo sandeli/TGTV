@@ -1,9 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../style/index.dart';
 import 'tv_dialog_frame.dart';
+
+class TvDialogSaveException implements Exception {
+  const TvDialogSaveException(this.message);
+
+  final String message;
+}
 
 /// 弹窗按钮描述
 class TvDialogButton {
@@ -25,6 +33,7 @@ class TvTextEditDialog extends StatefulWidget {
     required this.hint,
     required this.initialValue,
     required this.onSave,
+    this.draftValues,
     this.subtitle,
     this.extraButtons = const <TvDialogButton>[],
     this.maxWidth = 500,
@@ -35,7 +44,8 @@ class TvTextEditDialog extends StatefulWidget {
   final String? subtitle;
   final String hint;
   final String initialValue;
-  final ValueChanged<String> onSave;
+  final FutureOr<void> Function(String) onSave;
+  final Stream<String>? draftValues;
   final List<TvDialogButton> extraButtons;
 
   /// 弹窗宽度（设计稿单位）
@@ -58,6 +68,9 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
   late final TextEditingController _controller;
   late final List<TvDialogButton> _buttons;
   late final List<FocusNode> _buttonNodes;
+  StreamSubscription<String>? _draftSubscription;
+  String? _saveError;
+  bool _isSaving = false;
 
   /// 当前焦点序号：0 为输入框，其余为 extraButtons + 取消 + 保存
   int _focusIndex = _fieldIndex;
@@ -75,6 +88,14 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
       TvDialogButton(label: '保存', onPressed: _save),
     ];
     _buttonNodes = List.generate(_buttons.length, (_) => FocusNode());
+    _draftSubscription = widget.draftValues?.listen((draft) {
+      if (!mounted) return;
+      _controller.value = TextEditingValue(
+        text: draft,
+        selection: TextSelection.collapsed(offset: draft.length),
+      );
+      setState(() => _saveError = null);
+    });
 
     // 初帧给输入框的高亮落在容器层，不把焦点真交给 EditableText
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -84,6 +105,7 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
 
   @override
   void dispose() {
+    unawaited(_draftSubscription?.cancel());
     _controller.dispose();
     for (final node in _buttonNodes) {
       node.dispose();
@@ -93,9 +115,24 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
 
   int get _ringCount => _buttonNodes.length + 1;
 
-  void _save() {
-    widget.onSave(_controller.text);
-    Navigator.pop(context);
+  Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() {
+      _isSaving = true;
+      _saveError = null;
+    });
+    try {
+      await widget.onSave(_controller.text);
+      if (mounted) Navigator.pop(context);
+    } on TvDialogSaveException catch (error) {
+      if (mounted) setState(() => _saveError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saveError = '保存失败，请检查订阅链接和网络后重试。');
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _requestFocusIndex(int index) {
@@ -198,6 +235,17 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
           ],
           SizedBox(height: 20.h),
           _buildField(),
+          if (_saveError != null) ...[
+            SizedBox(height: 12.h),
+            Text(
+              _saveError!,
+              style: AppTheme.text(
+                AppTheme.error(context),
+                widget.fontSize.sp,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ],
           SizedBox(height: 20.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -208,7 +256,11 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
                   focusNode: _buttonNodes[i],
                   onPressed: _buttons[i].onPressed,
                   style: _actionButtonStyle(),
-                  child: Text(_buttons[i].label),
+                  child: Text(
+                    _isSaving && _buttons[i].label == '保存'
+                        ? '正在保存…'
+                        : _buttons[i].label,
+                  ),
                 ),
               ],
             ],
@@ -227,6 +279,9 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
       // 编辑态自然要高亮；非编辑态下随焦点环是否落在输入框上
       active: tvEditing || _focusIndex == _fieldIndex,
       editing: tvEditing,
+      onChanged: (_) {
+        if (_saveError != null) setState(() => _saveError = null);
+      },
       onSubmitted: (_) => tvExitEditing(),
     );
   }

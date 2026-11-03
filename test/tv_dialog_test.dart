@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -69,6 +71,70 @@ void main() {
         AppTheme.dialogFocus,
       );
     }
+  });
+
+  testWidgets('扫码提交只回填草稿，按保存前不触发保存', (tester) async {
+    final drafts = StreamController<String>.broadcast();
+    final saved = <String>[];
+    final app = _host(
+      label: 'open',
+      dialog: TvTextEditDialog(
+        title: '自定义直播源',
+        hint: '输入订阅链接',
+        initialValue: '',
+        draftValues: drafts.stream,
+        extraButtons: [TvDialogButton(label: '二维码', onPressed: () {})],
+        onSave: saved.add,
+      ),
+    );
+
+    await tester.pumpWidget(_wrapScreenUtil(app));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    const url = 'https://example.com/playlist.m3u';
+    drafts.add(url);
+    await tester.pumpAndSettle();
+
+    expect(find.text(url), findsOneWidget);
+    expect(saved, isEmpty);
+    expect(find.byType(TvTextEditDialog), findsOneWidget);
+
+    // 输入框 → 二维码 → 取消 → 保存
+    for (var i = 0; i < 3; i++) {
+      await _pressKey(tester, LogicalKeyboardKey.arrowDown);
+    }
+    await _pressKey(tester, LogicalKeyboardKey.select);
+
+    expect(saved, [url]);
+    expect(find.byType(TvTextEditDialog), findsNothing);
+    await drafts.close();
+  });
+
+  testWidgets('保存加载失败时保留编辑框并显示可读错误', (tester) async {
+    final app = _host(
+      label: 'open',
+      dialog: TvTextEditDialog(
+        title: '自定义直播源',
+        hint: '输入订阅链接',
+        initialValue: 'https://example.com/bad.m3u',
+        onSave: (_) => throw const TvDialogSaveException(
+          '无法获取有效播放列表，请检查链接格式和网络后重试。',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(_wrapScreenUtil(app));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // 输入框 → 取消 → 保存
+    await _pressKey(tester, LogicalKeyboardKey.arrowDown);
+    await _pressKey(tester, LogicalKeyboardKey.arrowDown);
+    await _pressKey(tester, LogicalKeyboardKey.select);
+
+    expect(find.byType(TvTextEditDialog), findsOneWidget);
+    expect(find.text('无法获取有效播放列表，请检查链接格式和网络后重试。'), findsOneWidget);
   });
 
   testWidgets('文本编辑弹窗：初始值回填、取消不落值', (tester) async {
