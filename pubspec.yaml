@@ -50,6 +50,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+dependency_overrides:
+  # 6.3.2 raises minSdk to 19; this API18 experiment uses a compatible release.
+  url_launcher_android: 6.2.1
+
 flutter:
   uses-material-design: true
   # README 截图仅供文档展示，不打包到应用；应用运行时只需要局域网导入网页。
