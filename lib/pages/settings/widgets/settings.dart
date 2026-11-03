@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
@@ -7,13 +5,6 @@ import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:video_player_example/common/index.dart';
 
 import '../../../common/widgets/two_dimension_list_view.dart';
-
-class SettingGroup {
-  final String name;
-  final List<SettingItem> items;
-
-  SettingGroup({required this.name, required this.items});
-}
 
 class SettingItem {
   final String title;
@@ -40,18 +31,9 @@ class SettingsMain extends StatefulWidget {
 
 class _SettingsMainState extends State<SettingsMain> {
   final iptvStore = GetIt.I<IptvStore>();
-  final updateStore = GetIt.I<UpdateStore>();
-
   late final List<SettingItem> _settingItemList;
 
-  /// 电视端文本编辑弹窗
-  ///
-  /// Flutter 的按键分发顺序是「叶子节点 → 根」(focus_manager.dart:1995)，
-  /// 而 EditableText 在最内层就把上下方向键映射成了光标移动
-  /// (editable_text.dart:4835)。输入框一旦拿到焦点，外层 Focus 便再也收不到方向键，
-  /// 「保存」按钮因此不可达；电视端又没有输入法，onSubmitted 同样不会触发。
-  /// 所以改由容器层统一托管按键：方向键在各元素间移动焦点，OK 键执行当前元素。
-  /// 具体实现对所有文本文件复用同一份，见 TvTextEditDialog。
+  /// 电视端文本编辑弹窗：复用容器级方向键焦点管理，保证保存按钮可达。
   void _showTvTextEditDialog({
     required String title,
     required String hint,
@@ -77,37 +59,6 @@ class _SettingsMainState extends State<SettingsMain> {
     );
   }
 
-  void _showChannelSelectDialog() async {
-    final allChannels = await IptvUtil.getAllChannelNames();
-    if (!mounted) return;
-    if (allChannels.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(const SnackBar(content: Text('无可选频道，请先获取直播源')));
-      return;
-    }
-
-    final initialSelected = Set<String>.from(
-        IptvSettings.allowedChannels.isNotEmpty
-            ? IptvSettings.allowedChannels
-            : allChannels);
-
-    final result = await ChannelSelectDialog.show(
-      context,
-      allChannels: allChannels,
-      selected: initialSelected,
-    );
-
-    if (result != null && mounted) {
-      IptvSettings.allowedChannels = result.toList();
-      IptvSettings.iptvSourceSimplify = true;
-      IptvSettings.epgCacheHash = 0;
-      iptvStore.refreshIptvList().then((_) {
-        if (mounted) setState(() {});
-      });
-    }
-  }
-
   void _showCustomSourceDialog() {
     _showTvTextEditDialog(
       title: '自定义直播源',
@@ -121,7 +72,6 @@ class _SettingsMainState extends State<SettingsMain> {
       ],
       onSave: (value) {
         IptvSettings.customIptvSource = value.trim();
-        IptvSettings.iptvSourceSimplify = false;
         IptvSettings.epgCacheHash = 0;
         iptvStore.refreshIptvList().then((_) {
           if (mounted) setState(() {});
@@ -136,6 +86,7 @@ class _SettingsMainState extends State<SettingsMain> {
       await HttpServerUtil.close();
       return;
     }
+
     final fg = AppTheme.fg(context);
     await NavigatorUtil.push(
       context,
@@ -144,10 +95,7 @@ class _SettingsMainState extends State<SettingsMain> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '扫码导入订阅链接',
-                style: AppTheme.text(fg, 36.sp),
-              ),
+              Text('扫码导入订阅链接', style: AppTheme.text(fg, 36.sp)),
               SizedBox(height: 12.h),
               Text(
                 HttpServerUtil.serverUrl,
@@ -172,9 +120,7 @@ class _SettingsMainState extends State<SettingsMain> {
                   child: PrettyQrView.data(
                     data: HttpServerUtil.serverUrl,
                     decoration: PrettyQrDecoration(
-                      shape: PrettyQrSmoothSymbol(
-                        color: AppTheme.bg(context),
-                      ),
+                      shape: PrettyQrSmoothSymbol(color: AppTheme.bg(context)),
                     ),
                   ),
                 ),
@@ -192,75 +138,10 @@ class _SettingsMainState extends State<SettingsMain> {
     await HttpServerUtil.close();
   }
 
-  /// 社区与反馈：展示 QQ 群二维码
-  ///
-  /// 用内置图片资产而不是 qm.qq.com 的加群链接再生成二维码——
-  /// 那种链接带时效 key，会过期；官方生成的群二维码图最稳。
-  void _showCommunityQrcode() {
-    final fg = AppTheme.fg(context);
-    NavigatorUtil.push(
-      context,
-      TvModalScaffold(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '扫码加入交流群',
-                style: AppTheme.text(fg, 36.sp),
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '频道失效、问题反馈、交流用法（任选其一，一群人满请进二群）',
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 24.sp),
-              ),
-              SizedBox(height: 24.h),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _groupQrCard('assets/images/qq-group1.jpg', '一群 2166024531'),
-                  SizedBox(width: 48.w),
-                  _groupQrCard('assets/images/qq-group2.jpg', '二群 1067526818'),
-                ],
-              ),
-              SizedBox(height: 24.h),
-              Text(
-                '点击空白处或按 ESC 返回',
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.5), 20.sp),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _groupQrCard(String asset, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16).r,
-          child: Image.asset(
-            asset,
-            height: 340.h,
-            fit: BoxFit.cover,
-          ),
-        ),
-        SizedBox(height: 12.h),
-        Text(
-          label,
-          style: AppTheme.text(AppTheme.fg(context), 26.sp),
-        ),
-      ],
-    );
-  }
-
   @override
   void initState() {
     super.initState();
-    refreshSettingGroupList();
+    refreshSettingItemList();
   }
 
   @override
@@ -270,27 +151,22 @@ class _SettingsMainState extends State<SettingsMain> {
     final itemHeight = isPhone ? 160.0 : 190.w;
     final itemWidth =
         isPhone ? (screen.width - 32).clamp(280.0, 520.0).toDouble() : 400.w;
+
     return SizedBox(
       height: itemHeight + (isPhone ? 12 : 20.h),
       child: TwoDimensionListView(
         size: (rowHeight: itemHeight, colWidth: itemWidth),
         scrollOffset: (row: 0, col: -1),
         gap: (row: 20.h, col: isPhone ? 12 : 20.w),
-        itemCount: (
-          row: 1,
-          col: (_) => _settingItemList.length,
-        ),
+        itemCount: (row: 1, col: (_) => _settingItemList.length),
         onSelect: (position) => setState(() {
           _settingItemList.elementAtOrNull(position.col)?.onTap();
         }),
         onLongSelect: (position) => setState(() {
           _settingItemList.elementAtOrNull(position.col)?.onLongTap?.call();
         }),
-        itemBuilder: (context, position, isSelected) {
-          final item = _settingItemList[position.col];
-
-          return _buildSettingItem(item, isSelected);
-        },
+        itemBuilder: (context, position, isSelected) =>
+            _buildSettingItem(_settingItemList[position.col], isSelected),
       ),
     );
   }
@@ -328,284 +204,66 @@ class _SettingsMainState extends State<SettingsMain> {
             style: AppTheme.text(textColor, isPhone ? 13.sp : 24.sp),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-          )
+          ),
         ],
       ),
     );
   }
 
-  void refreshSettingGroupList() {
-    final groupList = [
-      SettingGroup(name: '应用', items: [
-        SettingItem(
-          title: '开机自启',
-          value: () => AppSettings.bootLaunch ? '启用' : '禁用',
-          description: () => '下次重启生效',
-          onTap: () {
-            AppSettings.bootLaunch = !AppSettings.bootLaunch;
-            // 这类开关不走网络请求，没有异步回调替我们刷新，
-            // 少了这句点击后界面纹丝不动，用户会以为没点上。
-            setState(() {});
-          },
-        ),
-      ]),
-      SettingGroup(name: '控制', items: [
-        SettingItem(
-          title: '换台反转',
-          value: () => IptvSettings.channelChangeFlip ? '反转' : '正常',
-          description: () => IptvSettings.channelChangeFlip
-              ? '方向键上：下一个频道\n方向键下：上一个频道'
-              : '方向键上：上一个频道\n方向键下：下一个频道',
-          onTap: () {
-            IptvSettings.channelChangeFlip = !IptvSettings.channelChangeFlip;
-            // 同「开机自启」：纯开关，靠手动 rebuild 让同一个 item 重新求值 value/description
-            setState(() {});
-          },
-        ),
-      ]),
-      SettingGroup(name: '直播源', items: [
-        SettingItem(
-          title: '直播源精简',
-          value: () {
-            if (!IptvSettings.iptvSourceSimplify) return '禁用';
-            final count = IptvSettings.allowedChannels.length;
-            return count > 0 ? '启用 ($count个频道)' : '启用';
-          },
-          description: () {
-            if (!IptvSettings.iptvSourceSimplify) return '显示完整直播源';
-            final count = IptvSettings.allowedChannels.length;
-            if (count > 0) return '仅显示已选频道，点击自定义';
-            return '未选择频道时显示全部';
-          },
-          onTap: () {
-            if (IptvSettings.iptvSourceSimplify) {
-              _showChannelSelectDialog();
-            } else {
-              IptvSettings.iptvSourceSimplify = true;
-              IptvSettings.epgCacheHash = 0;
-              iptvStore.refreshIptvList().then((_) {
-                if (mounted) setState(() {});
-              });
-            }
-          },
-          onLongTap: () {
-            if (!IptvSettings.iptvSourceSimplify) return;
-            IptvSettings.iptvSourceSimplify = false;
+  void refreshSettingItemList() {
+    _settingItemList = [
+      SettingItem(
+        title: '换台反转',
+        value: () => IptvSettings.channelChangeFlip ? '反转' : '正常',
+        description: () => IptvSettings.channelChangeFlip
+            ? '方向键上：下一个频道\n方向键下：上一个频道'
+            : '方向键上：上一个频道\n方向键下：下一个频道',
+        onTap: () {
+          IptvSettings.channelChangeFlip = !IptvSettings.channelChangeFlip;
+          setState(() {});
+        },
+      ),
+      SettingItem(
+        title: '订阅链接',
+        value: () => IptvSettings.customIptvSource.isNotEmpty ? '已导入' : '未导入',
+        description: () => IptvSettings.customIptvSource.isEmpty
+            ? '点击输入或扫码导入；长按清空'
+            : '链接已保存；长按清空',
+        onTap: _showCustomSourceDialog,
+        onLongTap: () {
+          IptvSettings.customIptvSource = '';
+          IptvSettings.epgCacheHash = 0;
+          iptvStore.refreshIptvList().then((_) {
+            if (mounted) setState(() {});
+          });
+        },
+      ),
+      SettingItem(
+        title: '节目单',
+        value: () => IptvSettings.epgEnable ? '启用' : '禁用',
+        description: () => '首次加载时可能会有跳帧风险',
+        onTap: () {
+          IptvSettings.epgEnable = !IptvSettings.epgEnable;
+          iptvStore.refreshEpgList().then((_) {
+            if (mounted) setState(() {});
+          });
+        },
+      ),
+      SettingItem(
+        title: '节目单缓存',
+        value: () => '当天',
+        description: () =>
+            IptvSettings.epgXmlCacheTime > 0 ? '已缓存(点击清除缓存)' : '未缓存',
+        onTap: () {
+          if (IptvSettings.epgXmlCacheTime > 0) {
+            IptvSettings.epgXmlCacheTime = 0;
             IptvSettings.epgCacheHash = 0;
-            iptvStore.refreshIptvList().then((_) {
-              if (mounted) setState(() {});
-            });
-          },
-        ),
-        SettingItem(
-          title: '订阅链接',
-          value: () => IptvSettings.customIptvSource.isNotEmpty ? '已导入' : '未导入',
-          description: () {
-            if (IptvSettings.customIptvSource.isEmpty) return '点击输入或扫码导入；长按清空';
-            return '链接已保存；长按清空';
-          },
-          onTap: () => _showCustomSourceDialog(),
-          onLongTap: () {
-            IptvSettings.customIptvSource = '';
-            IptvSettings.epgCacheHash = 0;
-            iptvStore.refreshIptvList().then((_) {
-              if (mounted) setState(() {});
-            });
-          },
-        ),
-      ]),
-      SettingGroup(name: '节目单', items: [
-        SettingItem(
-          title: '节目单',
-          value: () => IptvSettings.epgEnable ? '启用' : '禁用',
-          description: () => '首次加载时可能会有跳帧风险',
-          onTap: () {
-            IptvSettings.epgEnable = !IptvSettings.epgEnable;
             iptvStore.refreshEpgList().then((_) {
               if (mounted) setState(() {});
             });
-          },
-        ),
-        SettingItem(
-          title: '节目单缓存',
-          value: () => '当天',
-          description: () =>
-              IptvSettings.epgXmlCacheTime > 0 ? "已缓存(点击清除缓存)" : "未缓存",
-          onTap: () {
-            if (IptvSettings.epgXmlCacheTime > 0) {
-              IptvSettings.epgXmlCacheTime = 0;
-              IptvSettings.epgCacheHash = 0;
-              iptvStore.refreshEpgList().then((_) {
-                if (mounted) setState(() {});
-              });
-            }
-          },
-        ),
-        SettingItem(
-          title: '回看诊断',
-          value: () => '偏移 ${IptvSettings.catchupUtcOffsetHours}h',
-          description: () => '点击诊断当前频道能否回看（会比对回看与直播的返回内容）；长按切换时区偏移',
-          onTap: () => _runCatchupProbe(),
-          onLongTap: () {
-            IptvSettings.catchupUtcOffsetHours =
-                IptvSettings.catchupUtcOffsetHours == 8 ? 0 : 8;
-            setState(() {});
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(SnackBar(
-                content:
-                    Text('回看时区偏移已改为 ${IptvSettings.catchupUtcOffsetHours}h'),
-                duration: const Duration(seconds: 2),
-              ));
-          },
-        ),
-      ]),
-      SettingGroup(name: '社区与反馈', items: [
-        SettingItem(
-          title: 'QQ 交流群',
-          value: () => '2166024531 / 1067526818',
-          description: () => '频道失效反馈、交流用法；点击显示群二维码',
-          onTap: () => _showCommunityQrcode(),
-        ),
-        SettingItem(
-          title: '问题反馈',
-          value: () => '',
-          description: () => '也可到 GitHub Discussions 发帖（可检索、永久留档）',
-          onTap: () {
-            _showProbeResult(
-              'GitHub Discussions',
-              'github.com/sandeli/HTV → Discussions\n发帖时请带上：频道名 + 现象 + 地区/网络 + App 版本',
-            );
-          },
-        ),
-      ]),
+          }
+        },
+      ),
     ];
-
-    _settingItemList = groupList.expand((element) => element.items).toList();
-  }
-
-  void _showProbeResult(String title, String detail) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text('$title\n$detail'),
-        duration: const Duration(seconds: 6),
-      ));
-  }
-
-  /// 拉取播放列表正文（原始字节），用于回看与直播逐字节比对
-  Future<({int status, List<int> bytes})> _fetchPlaylist(String url) async {
-    HttpClient? client;
-    try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-      final req = await client
-          .getUrl(Uri.parse(url))
-          .timeout(const Duration(seconds: 10));
-      final resp = await req.close().timeout(const Duration(seconds: 10));
-      final bytes = <int>[];
-      await resp.forEach(bytes.addAll);
-      return (status: resp.statusCode, bytes: bytes);
-    } catch (e) {
-      return (status: -1, bytes: const <int>[]);
-    } finally {
-      client?.close(force: true);
-    }
-  }
-
-  bool _sameBytes(List<int> a, List<int> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
-
-  /// 源类型说明，用来解释"为什么这个频道回看不可用"
-  ///
-  /// 这几条都是实测结论：给地址追加回看参数后，服务端返回的播放列表
-  /// 与直播逐字节相同，即参数被直接忽略。
-  String _sourceKind(Iptv iptv) {
-    final url = iptv.url.split(';').first.trim().toLowerCase();
-    if (url.isEmpty) return '源地址为空';
-    if (url.contains('key=txiptv') || url.contains('/tsfile/live/')) {
-      return '运营商公网转播(txiptv)，playseek 参数实测被忽略';
-    }
-    if (url.contains('cctvnews.cctv.com')) {
-      return '央视官方 HLS，lbacks 参数实测被忽略';
-    }
-    return '普通直播源，服务端未声明回看能力';
-  }
-
-  /// 回看能力探测
-  ///
-  /// 先确认源是否声明了 catchup，再用最近一个已播完的节目拼地址。
-  /// 关键一步是**与直播地址逐字节比对**：很多服务端只是忽略未知参数、
-  /// 照样返回直播列表，那时"HTTP 200"是假象，放出来的还是直播流。
-  Future<void> _runCatchupProbe() async {
-    final playerStore = GetIt.I<PlayerStore>();
-    final iptv = iptvStore.currentIptv;
-
-    if (!iptv.supportCatchup) {
-      _showProbeResult(
-        '回看不可用',
-        '${iptv.name}：${_sourceKind(iptv)}\n源数据未下发 catchup 字段，App 无法自行拼出回看地址',
-      );
-      return;
-    }
-
-    final programmes = iptvStore.getProgrammes(iptv);
-    final target = CatchupUtil.pickProbeProgramme(programmes);
-    if (target == null) {
-      _showProbeResult(
-        '没有可回看的节目',
-        programmes.isEmpty ? 'EPG 里没有 ${iptv.name}' : '${iptv.name} 今天还没有播完的节目',
-      );
-      return;
-    }
-
-    final urls =
-        CatchupUtil.buildUrls(iptv, startMs: target.start, stopMs: target.stop);
-    LoggerUtil.debug('回看探测候选: ${urls.join('  |  ')}');
-    if (urls.isEmpty) {
-      _showProbeResult('无法拼出回看地址', '${iptv.name} 的 catchup 模板为空');
-      return;
-    }
-
-    final liveUrl = iptv.url.split(';').first.trim();
-    final live = await _fetchPlaylist(liveUrl);
-
-    String? playUrl;
-    final report = <String>[];
-    for (final url in urls) {
-      final r = await _fetchPlaylist(url);
-      if (r.status < 0) {
-        report.add('请求失败（超时或不可达）');
-        continue;
-      }
-      if (r.status >= 400) {
-        report.add('HTTP ${r.status}');
-        continue;
-      }
-      if (live.status >= 0 &&
-          live.bytes.isNotEmpty &&
-          _sameBytes(live.bytes, r.bytes)) {
-        report.add('HTTP ${r.status}，但内容与直播逐字节相同 → 参数被忽略');
-        continue;
-      }
-      report.add('HTTP ${r.status} 且内容与直播不同，疑似真实录像');
-      playUrl ??= url;
-    }
-
-    if (playUrl == null) {
-      _showProbeResult('回看未生效', '《${target.title}》\n${report.join('\n')}');
-      return;
-    }
-
-    await playerStore.playCatchup(iptv, url: playUrl);
-    _showProbeResult(
-      '回看《${target.title}》已开始',
-      '按返回键观看；若画面是直播而不是片头，说明时区偏移要调',
-    );
   }
 }

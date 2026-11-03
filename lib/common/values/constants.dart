@@ -9,10 +9,6 @@ class Constants {
   /// EPG 刷新时间阈值（小时）
   static const epgRefreshTimeThreshold = 6; // 不到6点不刷新
 
-  /// GitHub Releases 更新检查
-  static const githubReleaseApi = 'https://api.github.com/repos/sandeli/HTV/releases/latest';
-  static const githubReleaseLatest = 'https://github.com/sandeli/HTV/releases/latest';
-
   /// 局域网导入服务端口
   static const httpServerPort = 10381;
 

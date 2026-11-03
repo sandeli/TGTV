@@ -10,6 +10,8 @@ class TwoDimensionListView extends StatefulWidget {
   const TwoDimensionListView({
     super.key,
     this.initialPosition = const (row: 0, col: 0),
+    this.focusNode,
+    this.autofocus = true,
     required this.size,
     this.scrollOffset = const (row: 0, col: 0),
     this.gap = const (row: 0, col: 0),
@@ -19,13 +21,20 @@ class TwoDimensionListView extends StatefulWidget {
     required this.itemBuilder,
     this.onSelect,
     this.onLongSelect,
+    this.onArrowLeft,
+    this.onArrowRight,
     this.verticalLayout = false,
     this.viewportHeight,
-
   });
 
   /// 初始位置
   final ({int row, int col}) initialPosition;
+
+  /// 可选外部焦点，便于将多个列表组合成并列菜单。
+  final FocusNode? focusNode;
+
+  /// 是否在初次挂载时请求焦点。
+  final bool autofocus;
 
   // 尺寸
   final ({double rowHeight, double colWidth}) size;
@@ -46,13 +55,19 @@ class TwoDimensionListView extends StatefulWidget {
   final ({int row, int Function(int row) col}) itemCount;
 
   /// 元素
-  final Widget Function(BuildContext context, ({int row, int col}) position, bool isSelected) itemBuilder;
+  final Widget Function(
+          BuildContext context, ({int row, int col}) position, bool isSelected)
+      itemBuilder;
 
   /// 选中事件
   final void Function(({int row, int col}) position)? onSelect;
 
   /// 持续长选中事件
   final void Function(({int row, int col}) position)? onLongSelect;
+
+  /// 竖向布局下的左右方向键回调。
+  final VoidCallback? onArrowLeft;
+  final VoidCallback? onArrowRight;
 
   /// 竖向排列
   final bool verticalLayout;
@@ -65,7 +80,8 @@ class TwoDimensionListView extends StatefulWidget {
 }
 
 class _TwoDimensionListViewState extends State<TwoDimensionListView> {
-  final _focusNode = FocusNode();
+  late final FocusNode _focusNode;
+  late final bool _ownsFocusNode;
   static const double _topPadding = 20.0;
 
   /// 本次按键是否已触发过长按（用于松手时抑制短按）
@@ -126,7 +142,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
         // 必须判 n > 0：空组实际只占「分组头 + 组间距」，
         // 套公式会多算 (n-1)*gap.col = -gap.col，往后每组都累积一个偏差，
         // 表现为跨过一个空分组后，跳到该组的频道时定位整体偏高。
-        if (n > 0) offset += n * widget.size.rowHeight + (n - 1) * widget.gap.col;
+        if (n > 0)
+          offset += n * widget.size.rowHeight + (n - 1) * widget.gap.col;
       }
       return offset + _topPadding;
     }
@@ -136,12 +153,14 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
 
   /// 水平滚动偏移
   double _getHorizontalScrollOffset(int idx) {
-    final size = widget.verticalLayout ? widget.size.rowHeight : widget.size.colWidth;
+    final size =
+        widget.verticalLayout ? widget.size.rowHeight : widget.size.colWidth;
     return (idx + widget.scrollOffset.col) * (size + widget.gap.col);
   }
 
   /// 改变选中
-  Future<void> _changePosition({required int row, required int col, bool jumpTo = false}) async {
+  Future<void> _changePosition(
+      {required int row, required int col, bool jumpTo = false}) async {
     final prevRow = _position.row;
     final prevCol = _position.col;
 
@@ -164,45 +183,54 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
         if (col == colCount - 1) {
           // 跳到分组最后一条时，滚动到分组底部
           final groupEnd = _getVerticalScrollOffset(row + 1);
-          offset = (groupEnd - (widget.viewportHeight ?? 480)).clamp(0.0, groupEnd);
+          offset =
+              (groupEnd - (widget.viewportHeight ?? 480)).clamp(0.0, groupEnd);
         } else {
           offset = _getVerticalScrollOffset(row);
         }
-        (jumpTo ? _verticalScrollController.jumpTo(offset) : _verticalScrollController.animateTo(
-          offset.clamp(
-            _verticalScrollController.position.minScrollExtent,
-            _verticalScrollController.position.maxScrollExtent,
-          ),
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-        ));
+        (jumpTo
+            ? _verticalScrollController.jumpTo(offset)
+            : _verticalScrollController.animateTo(
+                offset.clamp(
+                  _verticalScrollController.position.minScrollExtent,
+                  _verticalScrollController.position.maxScrollExtent,
+                ),
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOut,
+              ));
       } else if (col != prevCol && widget.viewportHeight != null) {
         // 同分组内滚动，保持选中项可见
         final groupStart = _getVerticalScrollOffset(row);
         final headerH = widget.headerHeightBuilder?.call(row) ?? 40;
-        final itemTop = groupStart + headerH + col * (widget.size.rowHeight + widget.gap.col);
+        final itemTop = groupStart +
+            headerH +
+            col * (widget.size.rowHeight + widget.gap.col);
         final itemBottom = itemTop + widget.size.rowHeight;
         final scrollPos = _verticalScrollController.offset;
 
         if (itemTop < scrollPos) {
-          (jumpTo ? _verticalScrollController.jumpTo(itemTop) : _verticalScrollController.animateTo(
-            itemTop.clamp(
-              _verticalScrollController.position.minScrollExtent,
-              _verticalScrollController.position.maxScrollExtent,
-            ),
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-          ));
+          (jumpTo
+              ? _verticalScrollController.jumpTo(itemTop)
+              : _verticalScrollController.animateTo(
+                  itemTop.clamp(
+                    _verticalScrollController.position.minScrollExtent,
+                    _verticalScrollController.position.maxScrollExtent,
+                  ),
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                ));
         } else if (itemBottom > scrollPos + widget.viewportHeight!) {
           final targetOffset = itemBottom - widget.viewportHeight!;
-          (jumpTo ? _verticalScrollController.jumpTo(targetOffset) : _verticalScrollController.animateTo(
-            targetOffset.clamp(
-              _verticalScrollController.position.minScrollExtent,
-              _verticalScrollController.position.maxScrollExtent,
-            ),
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-          ));
+          (jumpTo
+              ? _verticalScrollController.jumpTo(targetOffset)
+              : _verticalScrollController.animateTo(
+                  targetOffset.clamp(
+                    _verticalScrollController.position.minScrollExtent,
+                    _verticalScrollController.position.maxScrollExtent,
+                  ),
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                ));
         }
       }
     } else {
@@ -211,7 +239,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
           _verticalScrollController.position.minScrollExtent,
           _verticalScrollController.position.maxScrollExtent,
         ));
-        _horizontalScrollController.jumpTo(_getHorizontalScrollOffset(col).clamp(
+        _horizontalScrollController
+            .jumpTo(_getHorizontalScrollOffset(col).clamp(
           _horizontalScrollController.position.minScrollExtent,
           _horizontalScrollController.position.maxScrollExtent,
         ));
@@ -239,10 +268,16 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   }
 
   void _initData() {
+    final verticalInitialOffset = widget.verticalLayout
+        ? (_getVerticalScrollOffset(widget.initialPosition.row) - _topPadding)
+            .clamp(0.0, double.infinity)
+            .toDouble()
+        : _getVerticalScrollOffset(widget.initialPosition.row);
     _verticalScrollController =
-        ScrollController(initialScrollOffset: widget.verticalLayout ? 0 : _getVerticalScrollOffset(widget.initialPosition.row));
-    _horizontalScrollController =
-        ScrollController(initialScrollOffset: _getHorizontalScrollOffset(widget.initialPosition.col));
+        ScrollController(initialScrollOffset: verticalInitialOffset);
+    _horizontalScrollController = ScrollController(
+        initialScrollOffset:
+            _getHorizontalScrollOffset(widget.initialPosition.col));
 
     // WidgetsBinding.instance.addPostFrameCallback((_) {
     //   _verticalScrollController.jumpTo(_getVerticalScrollOffset(widget.initialPosition.row).clamp(
@@ -260,12 +295,14 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   @override
   void initState() {
     super.initState();
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
     _initData();
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (_ownsFocusNode) _focusNode.dispose();
     _positionNotifier.dispose();
     _verticalScrollController.dispose();
     _horizontalScrollController.dispose();
@@ -282,7 +319,10 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
 
     final list = _buildRowList();
     final child = widget.verticalLayout
-        ? Scrollbar(controller: _verticalScrollController, thumbVisibility: true, child: list)
+        ? Scrollbar(
+            controller: _verticalScrollController,
+            thumbVisibility: true,
+            child: list)
         : list;
     return _buildKeyboardListener(child: child);
   }
@@ -298,7 +338,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     // （见 _buildSlots 注释），_getVerticalScrollOffset 的偏移计算无需改动。
     if (widget.verticalLayout) {
       return ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: widget.viewportHeight ?? double.infinity),
+        constraints:
+            BoxConstraints(maxHeight: widget.viewportHeight ?? double.infinity),
         child: CustomScrollView(
           controller: _verticalScrollController,
           slivers: [
@@ -343,7 +384,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   /// 横向模式的外层 ListView 不是 shrinkWrap，内层列表装在固定高度的 Expanded 里，
   /// 本身就是真正的 Viewport，虚拟化是生效的，不需要像竖向那样改造。
   Widget _buildColList({required int row}) {
-    final scrollController = _position.row == row ? _horizontalScrollController : null;
+    final scrollController =
+        _position.row == row ? _horizontalScrollController : null;
     final listView = ListView.separated(
       controller: scrollController,
       scrollDirection: Axis.horizontal,
@@ -372,7 +414,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
       },
     );
     if (scrollController != null) {
-      return Scrollbar(controller: scrollController, thumbVisibility: true, child: listView);
+      return Scrollbar(
+          controller: scrollController, thumbVisibility: true, child: listView);
     }
     return listView;
   }
@@ -402,7 +445,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   Widget _buildVerticalSlot(BuildContext context, int index) {
     final slot = _slots![index];
     return switch (slot.type) {
-      _SlotType.header => (widget.rowTopBuilder?.call(context, slot.row) ?? const SizedBox.shrink())
+      _SlotType.header => (widget.rowTopBuilder?.call(context, slot.row) ??
+              const SizedBox.shrink())
           .delayed(enable: DebugSettings.delayRender),
       _SlotType.gap => SizedBox(height: slot.height),
       _SlotType.item => _buildVerticalItem(row: slot.row, col: slot.col),
@@ -448,7 +492,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   /// 监听键盘事件
   Widget _buildKeyboardListener({required Widget child}) {
     return EasyKeyboardListener(
-      autofocus: true,
+      autofocus: widget.autofocus,
       focusNode: _focusNode,
       onKeyTap: {
         LogicalKeyboardKey.arrowUp: widget.verticalLayout
@@ -460,7 +504,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
                 }
                 final target = _findRowWithItem(_position.row - 1, -1);
                 if (target == null) return false;
-                _changePosition(row: target, col: widget.itemCount.col(target) - 1);
+                _changePosition(
+                    row: target, col: widget.itemCount.col(target) - 1);
                 return true;
               }
             : () {
@@ -493,18 +538,28 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
                 return false;
               },
         LogicalKeyboardKey.arrowLeft: widget.verticalLayout
-            ? () => true
+            ? () {
+                if (!_focusNode.hasFocus) return false;
+                widget.onArrowLeft?.call();
+                return true;
+              }
             : () {
                 if (!_focusNode.hasFocus) return false;
                 if (_position.col > 0) {
                   _changePosition(row: _position.row, col: _position.col - 1);
                 } else {
-                  _changePosition(row: _position.row, col: widget.itemCount.col(_position.row) - 1);
+                  _changePosition(
+                      row: _position.row,
+                      col: widget.itemCount.col(_position.row) - 1);
                 }
                 return true;
               },
         LogicalKeyboardKey.arrowRight: widget.verticalLayout
-            ? () => true
+            ? () {
+                if (!_focusNode.hasFocus) return false;
+                widget.onArrowRight?.call();
+                return true;
+              }
             : () {
                 if (!_focusNode.hasFocus) return false;
                 if (_position.col < widget.itemCount.col(_position.row) - 1) {
@@ -546,12 +601,16 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
             ? () {
                 if (!_focusNode.hasFocus) return false;
                 if (_position.col > 0) {
-                  _changePosition(row: _position.row, col: _position.col - 1, jumpTo: true);
+                  _changePosition(
+                      row: _position.row, col: _position.col - 1, jumpTo: true);
                   return true;
                 }
                 final target = _findRowWithItem(_position.row - 1, -1);
                 if (target != null) {
-                  _changePosition(row: target, col: widget.itemCount.col(target) - 1, jumpTo: true);
+                  _changePosition(
+                      row: target,
+                      col: widget.itemCount.col(target) - 1,
+                      jumpTo: true);
                 }
                 return true;
               }
@@ -568,7 +627,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
                 if (!_focusNode.hasFocus) return false;
                 final maxCol = widget.itemCount.col(_position.row) - 1;
                 if (_position.col < maxCol) {
-                  _changePosition(row: _position.row, col: _position.col + 1, jumpTo: true);
+                  _changePosition(
+                      row: _position.row, col: _position.col + 1, jumpTo: true);
                   return true;
                 }
                 final target = _findRowWithItem(_position.row + 1, 1);
@@ -586,20 +646,30 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
                 return false;
               },
         LogicalKeyboardKey.arrowLeft: widget.verticalLayout
-            ? () => true
+            ? () {
+                if (!_focusNode.hasFocus) return false;
+                widget.onArrowLeft?.call();
+                return true;
+              }
             : () {
                 if (!_focusNode.hasFocus) return false;
                 if (_position.col > 0) {
-                  _changePosition(row: _position.row, col: _position.col - 1, jumpTo: true);
+                  _changePosition(
+                      row: _position.row, col: _position.col - 1, jumpTo: true);
                 }
                 return true;
               },
         LogicalKeyboardKey.arrowRight: widget.verticalLayout
-            ? () => true
+            ? () {
+                if (!_focusNode.hasFocus) return false;
+                widget.onArrowRight?.call();
+                return true;
+              }
             : () {
                 if (!_focusNode.hasFocus) return false;
                 if (_position.col < widget.itemCount.col(_position.row) - 1) {
-                  _changePosition(row: _position.row, col: _position.col + 1, jumpTo: true);
+                  _changePosition(
+                      row: _position.row, col: _position.col + 1, jumpTo: true);
                 }
                 return true;
               },
@@ -611,6 +681,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
 
 /// 竖向布局一维序列中的槽位类型
 enum _SlotType { header, item, gap }
+
 /// 竖向布局一维序列中的槽位。
 ///
 /// 只是描述壳层（这一格是什么），不含 Widget，
@@ -651,7 +722,9 @@ class _SelectableTile extends StatefulWidget {
   final ValueListenable<({int row, int col})> position;
   final int row;
   final int col;
-  final Widget Function(BuildContext context, ({int row, int col}) position, bool isSelected) builder;
+  final Widget Function(
+          BuildContext context, ({int row, int col}) position, bool isSelected)
+      builder;
 
   @override
   State<_SelectableTile> createState() => _SelectableTileState();

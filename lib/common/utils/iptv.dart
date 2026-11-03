@@ -3,14 +3,13 @@ import 'dart:io';
 import 'package:video_player_example/common/index.dart';
 import 'package:path_provider/path_provider.dart';
 
-
 final _logger = LoggerUtil.create(['iptv']);
 
 /// iptv工具类
 class IptvUtil {
   IptvUtil._();
 
-  /// 迁移用户播放列表缓存到应用私有持久目录，并删除旧内置列表缓存。
+  /// 迁移旧版用户播放列表缓存到应用私有持久目录。
   static Future<void> migrateLegacyCacheFiles() async {
     try {
       final temporaryDirectory = await getTemporaryDirectory();
@@ -20,13 +19,10 @@ class IptvUtil {
       final oldCustomCache = File('${temporaryDirectory.path}/custom.txt');
       final customCache = File('${cacheDirectory.path}/custom.txt');
       if (await oldCustomCache.exists()) {
-        if (!await customCache.exists()) await oldCustomCache.copy(customCache.path);
+        if (!await customCache.exists())
+          await oldCustomCache.copy(customCache.path);
         await oldCustomCache.delete();
       }
-
-      // 旧版此文件包含内置频道，不能在升级后继续显示。
-      final legacyBuiltinCache = File('${temporaryDirectory.path}/iptv.txt');
-      if (await legacyBuiltinCache.exists()) await legacyBuiltinCache.delete();
     } catch (e, st) {
       _logger.handle(e, st);
     }
@@ -35,8 +31,10 @@ class IptvUtil {
   /// 自定义源缓存是否已失效（过期或源地址已变更）
   static bool isCustomSourceCacheStale([String? sourceUrl]) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    return now - IptvSettings.customIptvSourceCacheTime >= IptvSettings.iptvSourceCacheKeepTime ||
-        IptvSettings.customIptvSourceCacheUrl != (sourceUrl ?? IptvSettings.customIptvSource);
+    return now - IptvSettings.customIptvSourceCacheTime >=
+            IptvSettings.iptvSourceCacheKeepTime ||
+        IptvSettings.customIptvSourceCacheUrl !=
+            (sourceUrl ?? IptvSettings.customIptvSource);
   }
 
   /// 获取自定义直播源缓存文件
@@ -49,7 +47,8 @@ class IptvUtil {
   /// 读取自定义直播源缓存（仅当缓存地址与当前配置一致）
   static Future<String> _getCustomCache([String? sourceUrl]) async {
     final url = sourceUrl ?? IptvSettings.customIptvSource;
-    if (IptvSettings.customIptvSource != url || IptvSettings.customIptvSourceCacheUrl != url) return '';
+    if (IptvSettings.customIptvSource != url ||
+        IptvSettings.customIptvSourceCacheUrl != url) return '';
     try {
       final cacheFile = await _getCustomCacheFile();
       if (await cacheFile.exists()) {
@@ -78,13 +77,15 @@ class IptvUtil {
       // wget.la 等缓存代理首次抓取(冷缓存)可能需 40s+，使用更长超时
       var result = await RequestUtil.get(sourceUrl,
           timeout: const Duration(seconds: 60));
-      _logger.debug('请求自定义直播源耗时: ${DateTime.now().millisecondsSinceEpoch - t2}ms');
+      _logger
+          .debug('请求自定义直播源耗时: ${DateTime.now().millisecondsSinceEpoch - t2}ms');
 
       if (IptvSettings.customIptvSource != sourceUrl) return '';
       if (result.isNotEmpty) {
         final cacheFile = await _getCustomCacheFile();
         await cacheFile.writeAsString(result);
-        IptvSettings.customIptvSourceCacheTime = DateTime.now().millisecondsSinceEpoch;
+        IptvSettings.customIptvSourceCacheTime =
+            DateTime.now().millisecondsSinceEpoch;
         IptvSettings.customIptvSourceCacheUrl = sourceUrl;
         _logger.debug('已缓存自定义直播源');
       } else if (cache.isNotEmpty) {
@@ -102,7 +103,7 @@ class IptvUtil {
     }
   }
 
-  /// 获取已缓存的用户播放列表（无网络请求；旧版内置源缓存不再读取）
+  /// 获取已缓存的用户播放列表（无网络请求）。
   static Future<List<IptvGroup>?> getCachedGroups() async {
     if (IptvSettings.customIptvSource.isEmpty) return null;
     final customCache = await _getCustomCache(IptvSettings.customIptvSource);
@@ -110,59 +111,14 @@ class IptvUtil {
     return buildGroups(customCache);
   }
 
-  /// 根据 allowedChannels 过滤分组
-  static List<IptvGroup> _applySimplifyFilter(List<IptvGroup> groups) {
-    final allowed = IptvSettings.allowedChannels;
-    var channel = 0;
-
-    return groups
-        .map((g) {
-          final filtered = <Iptv>[];
-          for (final item in g.list) {
-            final pass = allowed.isEmpty || allowed.contains(item.name);
-            if (!pass) continue;
-            filtered.add(Iptv(
-              idx: filtered.length,
-              channel: ++channel,
-              groupIdx: g.idx,
-              name: item.name,
-              url: item.url,
-              tvgName: item.tvgName,
-              catchup: item.catchup,
-              catchupSource: item.catchupSource,
-              catchupDays: item.catchupDays,
-            ));
-          }
-          return IptvGroup(idx: g.idx, name: g.name, list: filtered);
-        })
-        .where((g) => g.list.isNotEmpty)
-        .toList();
-  }
-
-  /// 解析直播源
-  static Future<List<IptvGroup>> _parseSource(String source,
-      {bool filter = true}) async {
+  /// 解析用户导入的播放列表，保留全部分类与频道。
+  static Future<List<IptvGroup>> _parseSource(String source) async {
     try {
-      var groups = await parseIptvSource(source);
-
-      if (filter && IptvSettings.iptvSourceSimplify) {
-        groups = _applySimplifyFilter(groups);
-      }
-
-      return groups;
+      return await parseIptvSource(source);
     } catch (e, st) {
       _logger.handle(e, st);
       rethrow;
     }
-  }
-
-  /// 获取当前源所有频道名称（不应用精简过滤）
-  static Future<List<String>> getAllChannelNames() async {
-    if (IptvSettings.customIptvSource.isEmpty) return [];
-    final cache = await _getCustomCache(IptvSettings.customIptvSource);
-    if (cache.isEmpty) return [];
-    final groups = await _parseSource(cache, filter: false);
-    return groups.expand((g) => g.list.map((i) => i.name)).toList();
   }
 
   /// 同名频道去重合并（保留首次出现的频道，url 用 ; 连接）
@@ -213,8 +169,8 @@ class IptvUtil {
 
   /// 重排分组与频道索引，并保证索引与最终列表位置严格一致
   ///
-  /// 前置的简化过滤（[_applySimplifyFilter]）与同名去重（[_mergeDuplicateChannels]）
-  /// 会整组丢弃频道，但重建时保留了原始序号，导致 [IptvGroup.idx] / [Iptv.groupIdx]
+  /// 同名去重（[_mergeDuplicateChannels]）会删除重复频道和空分组；若重建时仍保留
+  /// 原始序号，[IptvGroup.idx] / [Iptv.groupIdx]
   /// 不再等于实际下标——出现"空洞"，甚至大于列表长度。
   ///
   /// 而外层多处把它当作位置索引直接使用（频道面板的定位行、左右键切换分组），
@@ -252,7 +208,7 @@ class IptvUtil {
   /// 解析并整理单个用户播放列表：同名频道合并、频道号重排。
   static Future<List<IptvGroup>> buildGroups(String source) async {
     final groups = source.isEmpty ? <IptvGroup>[] : await _parseSource(source);
-    // 前置步骤丢弃过分组，必须按最终位置重排索引后才能对外暴露
+    // 同名去重可能让某个分组变空，必须按最终位置重排索引后再对外暴露。
     return _reindex(_mergeDuplicateChannels(groups));
   }
 

@@ -8,9 +8,6 @@ enum IptvSetting {
   /// 换台反转
   channelChangeFlip,
 
-  /// 直播源精简
-  iptvSourceSimplify,
-
   /// 直播源缓存保持时间
   iptvSourceCacheKeepTime,
 
@@ -41,9 +38,6 @@ enum IptvSetting {
   /// 节目单竖向排列
   channelListVertical,
 
-  /// 允许播放的频道列表
-  allowedChannels,
-
   /// 回看时间偏移小时数
   ///
   /// m3u 的 `catchup-source` 模板里 ${(b)}/${(e)} 只写格式不写时区，
@@ -55,21 +49,24 @@ enum IptvSetting {
 class IptvSettings {
   IptvSettings._();
 
-  static int get initialIptvIdx => PrefsUtil.getInt(IptvSetting.initialIptvIdx.toString()) ?? 0;
-  static set initialIptvIdx(int value) => PrefsUtil.setInt(IptvSetting.initialIptvIdx.toString(), value);
+  static int get initialIptvIdx =>
+      PrefsUtil.getInt(IptvSetting.initialIptvIdx.toString()) ?? 0;
+  static set initialIptvIdx(int value) =>
+      PrefsUtil.setInt(IptvSetting.initialIptvIdx.toString(), value);
 
-  static bool get channelChangeFlip => PrefsUtil.getBool(IptvSetting.channelChangeFlip.toString()) ?? false;
-  static set channelChangeFlip(bool value) => PrefsUtil.setBool(IptvSetting.channelChangeFlip.toString(), value);
-
-  static bool get iptvSourceSimplify => PrefsUtil.getBool(IptvSetting.iptvSourceSimplify.toString()) ?? false;
-  static set iptvSourceSimplify(bool value) => PrefsUtil.setBool(IptvSetting.iptvSourceSimplify.toString(), value);
+  static bool get channelChangeFlip =>
+      PrefsUtil.getBool(IptvSetting.channelChangeFlip.toString()) ?? false;
+  static set channelChangeFlip(bool value) =>
+      PrefsUtil.setBool(IptvSetting.channelChangeFlip.toString(), value);
 
   static int get iptvSourceCacheKeepTime =>
-      PrefsUtil.getInt(IptvSetting.iptvSourceCacheKeepTime.toString()) ?? Constants.iptvSourceCacheKeepTime;
+      PrefsUtil.getInt(IptvSetting.iptvSourceCacheKeepTime.toString()) ??
+      Constants.iptvSourceCacheKeepTime;
   static set iptvSourceCacheKeepTime(int value) =>
       PrefsUtil.setInt(IptvSetting.iptvSourceCacheKeepTime.toString(), value);
 
-  static String get customIptvSource => PrefsUtil.getString(IptvSetting.customIptvSource.toString()) ?? '';
+  static String get customIptvSource =>
+      PrefsUtil.getString(IptvSetting.customIptvSource.toString()) ?? '';
   static set customIptvSource(String value) {
     PrefsUtil.setString(IptvSetting.customIptvSource.toString(), value);
     // 自定义源变更即失效其缓存，下次刷新重新抓取
@@ -83,34 +80,41 @@ class IptvSettings {
       PrefsUtil.setInt(IptvSetting.customIptvSourceCacheTime.toString(), value);
 
   static String get customIptvSourceCacheUrl =>
-      PrefsUtil.getString(IptvSetting.customIptvSourceCacheUrl.toString()) ?? '';
-  static set customIptvSourceCacheUrl(String value) =>
-      PrefsUtil.setString(IptvSetting.customIptvSourceCacheUrl.toString(), value);
+      PrefsUtil.getString(IptvSetting.customIptvSourceCacheUrl.toString()) ??
+      '';
+  static set customIptvSourceCacheUrl(String value) => PrefsUtil.setString(
+      IptvSetting.customIptvSourceCacheUrl.toString(), value);
 
-  static bool get epgEnable => PrefsUtil.getBool(IptvSetting.epgEnable.toString()) ?? true;
-  static set epgEnable(bool value) => PrefsUtil.setBool(IptvSetting.epgEnable.toString(), value);
+  static bool get epgEnable =>
+      PrefsUtil.getBool(IptvSetting.epgEnable.toString()) ?? true;
+  static set epgEnable(bool value) =>
+      PrefsUtil.setBool(IptvSetting.epgEnable.toString(), value);
 
-  static int get epgXmlCacheTime => PrefsUtil.getInt(IptvSetting.epgXmlCacheTime.toString()) ?? 0;
-  static set epgXmlCacheTime(int value) => PrefsUtil.setInt(IptvSetting.epgXmlCacheTime.toString(), value);
+  static int get epgXmlCacheTime =>
+      PrefsUtil.getInt(IptvSetting.epgXmlCacheTime.toString()) ?? 0;
+  static set epgXmlCacheTime(int value) =>
+      PrefsUtil.setInt(IptvSetting.epgXmlCacheTime.toString(), value);
 
-  static int get epgCacheHash => PrefsUtil.getInt(IptvSetting.epgCacheHash.toString()) ?? 0;
-  static set epgCacheHash(int value) => PrefsUtil.setInt(IptvSetting.epgCacheHash.toString(), value);
+  static int get epgCacheHash =>
+      PrefsUtil.getInt(IptvSetting.epgCacheHash.toString()) ?? 0;
+  static set epgCacheHash(int value) =>
+      PrefsUtil.setInt(IptvSetting.epgCacheHash.toString(), value);
 
-  static String get customEpgXml => PrefsUtil.getString(IptvSetting.customEpgXml.toString()) ?? '';
-  static set customEpgXml(String value) => PrefsUtil.setString(IptvSetting.customEpgXml.toString(), value);
+  static String get customEpgXml =>
+      PrefsUtil.getString(IptvSetting.customEpgXml.toString()) ?? '';
+  static set customEpgXml(String value) =>
+      PrefsUtil.setString(IptvSetting.customEpgXml.toString(), value);
 
   static int get epgRefreshTimeThreshold =>
-      PrefsUtil.getInt(IptvSetting.epgRefreshTimeThreshold.toString()) ?? Constants.epgRefreshTimeThreshold;
+      PrefsUtil.getInt(IptvSetting.epgRefreshTimeThreshold.toString()) ??
+      Constants.epgRefreshTimeThreshold;
   static set epgRefreshTimeThreshold(int value) =>
       PrefsUtil.setInt(IptvSetting.epgRefreshTimeThreshold.toString(), value);
 
-  static bool get channelListVertical => PrefsUtil.getBool(IptvSetting.channelListVertical.toString()) ?? false;
-  static set channelListVertical(bool value) => PrefsUtil.setBool(IptvSetting.channelListVertical.toString(), value);
-
-  static List<String> get allowedChannels =>
-      PrefsUtil.getStringList(IptvSetting.allowedChannels.toString()) ?? [];
-  static set allowedChannels(List<String> value) =>
-      PrefsUtil.setStringList(IptvSetting.allowedChannels.toString(), value);
+  static bool get channelListVertical =>
+      PrefsUtil.getBool(IptvSetting.channelListVertical.toString()) ?? false;
+  static set channelListVertical(bool value) =>
+      PrefsUtil.setBool(IptvSetting.channelListVertical.toString(), value);
 
   /// 回看地址里 ${(b)}/${(e)} 的时间偏移（小时）
   ///

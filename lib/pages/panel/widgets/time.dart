@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:video_player_example/common/index.dart';
 
 class PanelTime extends StatefulWidget {
@@ -13,18 +12,26 @@ class PanelTime extends StatefulWidget {
 }
 
 class _PanelTimeState extends State<PanelTime> {
-  // 提为静态常量：原来每次 build（每秒一次）都要重新构造两个 DateFormat，
-  // 而格式化模式 allocations + locale 数据加载是很贵的部分。
-  static final _dateFormat = DateFormat('MM月dd日   E', 'zh-CN');
-  static final _timeFormat = DateFormat('HH:mm:ss');
+  static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
-  var _now = DateTime.now();
-  late Timer _timer;
+  DateTime _beijingNow() =>
+      DateTime.now().toUtc().add(const Duration(hours: 8));
+
+  late DateTime _now = _beijingNow();
+  late final Timer _timer;
+
+  String get _dateLabel =>
+      '${_now.month.toString().padLeft(2, '0')}月${_now.day.toString().padLeft(2, '0')}日  周${_weekdays[_now.weekday - 1]}';
+
+  String get _timeLabel =>
+      '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}:${_now.second.toString().padLeft(2, '0')}';
 
   @override
   void initState() {
     super.initState();
-    _initData();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = _beijingNow());
+    });
   }
 
   @override
@@ -33,26 +40,16 @@ class _PanelTimeState extends State<PanelTime> {
     super.dispose();
   }
 
-  void _initData() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _now = DateTime.now();
-      });
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        Text(_dateLabel, style: AppTheme.text(fg, 20.sp)),
         Text(
-          _dateFormat.format(_now),
-          style: AppTheme.text(fg, 20.sp),
-        ),
-        Text(
-          _timeFormat.format(_now),
+          _timeLabel,
           style: AppTheme.text(fg, 40.sp, weight: FontWeight.bold),
         ),
       ],

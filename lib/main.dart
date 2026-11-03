@@ -30,12 +30,7 @@ void main() async {
   // 初始化
   await PrefsUtil.init();
   LoggerUtil.init();
-  // 迁移为纯播放器壳：清除旧版默认源服务配置、匿名用户标识与地区缓存，
-  // 将用户订阅和节目单缓存保存在本机应用目录，并删除旧内置频道列表缓存。
-  await PrefsUtil.remove('IptvSetting.defaultIptvSourceApi');
-  await PrefsUtil.remove('IptvSetting.iptvSourceCacheTime');
-  await PrefsUtil.remove('assign_user');
-  await PrefsUtil.remove('cached_location');
+  // 将旧版用户订阅和节目单缓存迁移到本机应用目录。
   await IptvUtil.migrateLegacyCacheFiles();
   await EpgUtil.migrateLegacyCacheFiles();
   RequestUtil.init();
@@ -51,7 +46,6 @@ void main() async {
   // 注册全局Store
   GetIt.I.registerSingleton(PlayerStore());
   GetIt.I.registerSingleton(IptvStore());
-  GetIt.I.registerSingleton(UpdateStore());
 
   // 读取收藏频道
   await GetIt.I<IptvStore>().loadFavorites();

@@ -56,7 +56,8 @@ class HttpServerUtil {
         return _jsonResponse(415, {'ok': false, 'message': '仅接受播放列表链接提交。'});
       }
 
-      final contentLength = int.tryParse(request.headers['content-length'] ?? '');
+      final contentLength =
+          int.tryParse(request.headers['content-length'] ?? '');
       if (contentLength != null && contentLength > _maxRequestLength) {
         return _jsonResponse(413, {'ok': false, 'message': '链接过长。'});
       }
@@ -77,11 +78,11 @@ class HttpServerUtil {
         if (uri == null ||
             !const {'http', 'https'}.contains(uri.scheme.toLowerCase()) ||
             uri.host.isEmpty) {
-          return _jsonResponse(400, {'ok': false, 'message': '请输入有效的 HTTP 或 HTTPS 链接。'});
+          return _jsonResponse(
+              400, {'ok': false, 'message': '请输入有效的 HTTP 或 HTTPS 链接。'});
         }
 
         IptvSettings.customIptvSource = sourceUrl;
-        IptvSettings.iptvSourceSimplify = false;
         IptvSettings.epgCacheHash = 0;
         unawaited(_refreshAfterImport());
 
@@ -98,7 +99,8 @@ class HttpServerUtil {
     });
 
     // 不记录请求 URL：订阅地址可能含有账号或访问令牌。
-    final server = await io.serve(app.call, bindAddress, Constants.httpServerPort);
+    final server =
+        await io.serve(app.call, bindAddress, Constants.httpServerPort);
     _server = server;
     serverUrl = 'http://${server.address.address}:${server.port}';
     _logger.debug('局域网订阅导入服务已启动');
@@ -156,8 +158,6 @@ class HttpServerUtil {
     if (parts.length != 4 || parts.any((part) => part == null)) return false;
     final a = parts[0]!;
     final b = parts[1]!;
-    return a == 10 ||
-        a == 192 && b == 168 ||
-        a == 172 && b >= 16 && b <= 31;
+    return a == 10 || a == 192 && b == 168 || a == 172 && b >= 16 && b <= 31;
   }
 }

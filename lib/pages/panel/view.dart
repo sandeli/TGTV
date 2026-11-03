@@ -5,9 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:video_player_example/common/index.dart';
 import 'package:video_player_example/common/widgets/delay_renderer.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
-import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_list.dart';
-import 'package:video_player_example/pages/panel/widgets/player_info.dart';
 import 'package:video_player_example/pages/panel/widgets/time.dart';
 import '../../common/enums/debug_setting.dart';
 
@@ -19,12 +17,11 @@ class PanelPage extends StatefulWidget {
 }
 
 class _PanelPageState extends State<PanelPage> {
-  final playerStore = GetIt.I<PlayerStore>();
   final iptvStore = GetIt.I<IptvStore>();
 
   @override
   Widget build(BuildContext context) {
-    // 返回方式（点空白 / ESC）与遮罩交给公共外壳处理
+    // 返回方式（点空白 / ESC）与遮罩交给公共外壳处理。
     return TvModalScaffold(
       child: Stack(
         children: [
@@ -35,7 +32,7 @@ class _PanelPageState extends State<PanelPage> {
     );
   }
 
-  // 右上角
+  // 右上角保留频道号和时间；不显示当前/稍后节目或分辨率。
   Widget _buildTopRight(BuildContext context) {
     final onBackground = AppTheme.fg(context);
     return Positioned(
@@ -47,7 +44,6 @@ class _PanelPageState extends State<PanelPage> {
             builder: (_) => PanelIptvChannel(
                 iptvStore.currentIptv.channel.toString().padLeft(2, '0')),
           ),
-          // 分隔符
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 12, 0).r,
             child: SizedBox(
@@ -65,42 +61,29 @@ class _PanelPageState extends State<PanelPage> {
   }
 
   Widget _buildPanelContent({required bool isPhone}) {
-    return FocusTraversalGroup(
-      policy: ReadingOrderTraversalPolicy(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isPhone)
-            Row(
-              children: [
-                Expanded(child: PanelIptvInfo()),
-                IconButton(
-                  tooltip: '关闭频道列表',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.close, color: Colors.white),
-                ),
-              ],
-            )
-          else
-            UnconstrainedBox(
-              alignment: Alignment.topLeft,
-              child: PanelIptvInfo(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isPhone)
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              tooltip: '关闭频道列表',
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.close, color: Colors.white),
             ),
-          SizedBox(height: 16.h),
-          PanelPlayerInfo(),
-          SizedBox(height: 8.h),
-          Expanded(child: const PanelIptvList()),
-        ].delayed(enable: DebugSettings.delayRender),
-      ),
+          ),
+        Expanded(child: const PanelIptvList()),
+      ].delayed(enable: DebugSettings.delayRender),
     );
   }
 
-  // 底部
   Positioned _buildBottom() {
     final screen = MediaQuery.of(context).size;
     final isPhone = screen.shortestSide < 600;
-    final panelWidth =
-        isPhone ? (screen.width * 0.92).clamp(0.0, 520.0).toDouble() : 360.w;
+    final panelWidth = isPhone
+        ? (screen.width * 0.92).clamp(0.0, 520.0).toDouble()
+        : (screen.width * 0.44).clamp(680.0, 1100.0).toDouble();
     final panel = Container(
       padding: EdgeInsets.only(left: isPhone ? 16 : 40).r,
       child: _buildPanelContent(isPhone: isPhone),

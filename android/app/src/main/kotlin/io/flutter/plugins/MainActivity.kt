@@ -1,6 +1,7 @@
 package io.flutter.plugins
 
 import android.os.Build
+import android.net.TrafficStats
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -16,6 +17,18 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "isRooted" -> result.success(isDeviceRooted())
                 "isEmulator" -> result.success(isEmulator())
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.htwmedia.htv/network_stats"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getUidReceivedBytes" -> result.success(
+                    TrafficStats.getUidRxBytes(android.os.Process.myUid())
+                )
                 else -> result.notImplemented()
             }
         }

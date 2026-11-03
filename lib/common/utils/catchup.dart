@@ -1,7 +1,6 @@
 import 'package:intl/intl.dart';
 
 import '../enums/iptv_setting.dart';
-import '../models/epg.dart';
 import '../models/iptv.dart';
 
 /// 回看（catch-up）工具
@@ -23,14 +22,16 @@ class CatchupUtil {
   static final RegExp _placeholders = RegExp(r'\$\{\(([be])\)([^}]*)\}');
 
   static final RegExp _catchupAttr = RegExp(r'\bcatchup="([^"]*)"');
-  static final RegExp _catchupSourceAttr = RegExp(r'\bcatchup-source="([^"]*)"');
+  static final RegExp _catchupSourceAttr =
+      RegExp(r'\bcatchup-source="([^"]*)"');
   static final RegExp _catchupDaysAttr = RegExp(r'\bcatchup-days="([^"]*)"');
 
   /// 读取回看声明
   ///
   /// [extinfLine] 是频道自己的 `#EXTINF` 行，[head] 是 `#EXTM3U` 全局头。
   /// 频道级属性优先，没有才回退到全局。
-  static ({String type, String source, int days}) resolve(String head, String extinfLine) {
+  static ({String type, String source, int days}) resolve(
+      String head, String extinfLine) {
     String pick(RegExp re, String fallback) {
       return re.firstMatch(extinfLine)?.group(1) ??
           re.firstMatch(head)?.group(1) ??
@@ -55,7 +56,8 @@ class CatchupUtil {
       final millis = m.group(1) == 'b' ? startMs : stopMs;
       final utc = DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
       // EPG 的 start/stop 是带时区的绝对时刻，这里按偏移量还原成服务端要的字面时间
-      final target = utc.add(Duration(hours: IptvSettings.catchupUtcOffsetHours));
+      final target =
+          utc.add(Duration(hours: IptvSettings.catchupUtcOffsetHours));
       try {
         return DateFormat(pattern).format(target);
       } catch (_) {
@@ -76,7 +78,8 @@ class CatchupUtil {
   }) {
     if (!iptv.supportCatchup) return const [];
 
-    final filled = fillTemplate(iptv.catchupSource, startMs: startMs, stopMs: stopMs);
+    final filled =
+        fillTemplate(iptv.catchupSource, startMs: startMs, stopMs: stopMs);
 
     // 模板本身已经是完整地址
     if (iptv.catchup != 'append') return [filled];
@@ -90,24 +93,5 @@ class CatchupUtil {
       urls.add(base.substring(0, base.length - 1) + filled);
     }
     return urls.toList();
-  }
-
-  /// 挑一个适合做回看探测的往期节目
-  ///
-  /// 条件：已经完整播出、时长不短于 [minDuration]、且离现在最近。
-  /// 刚开播几分钟的节目不适合 —— 服务端往往还没切出完整录像。
-  static EpgProgramme? pickProbeProgramme(
-    List<EpgProgramme> programmes, {
-    Duration minDuration = const Duration(minutes: 5),
-  }) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    EpgProgramme? best;
-    for (final p in programmes) {
-      if (p.stop > now) continue; // 还没播完，跳过
-      if (p.stop - p.start < minDuration.inMilliseconds) continue;
-      if (best == null || p.stop > best.stop) best = p;
-    }
-    return best;
   }
 }

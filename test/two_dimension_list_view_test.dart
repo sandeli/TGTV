@@ -61,14 +61,15 @@ Widget buildVerticalList() {
 double expectedGroupOffset(int row) {
   var offset = _topPadding + row * _groupGap;
   for (var i = 0; i < row; i++) {
-    offset += _headerHeight + _colCount * _rowHeight + (_colCount - 1) * _itemGap;
+    offset +=
+        _headerHeight + _colCount * _rowHeight + (_colCount - 1) * _itemGap;
   }
   return offset;
 }
 
 /// 带空分组的列表：第 1 组没有任何频道。
 ///
-/// 「直播源精简」把某组过滤空是真实会发生的，此时跨组导航与滚动定位
+/// 导入列表或重复频道合并后可能出现空分组；跨组导航与滚动定位
 /// 都不能算错位置（历史 bug：滚动偏移公式给空组多减了一个 gap.col）。
 Widget buildVerticalListWithEmptyGroup() {
   return MaterialApp(
@@ -130,7 +131,8 @@ void main() {
 
     // 全量构建会是 160 条；视口 400px 加上默认 cacheExtent 也放不下多少
     expect(_built.length, lessThan(_rowCount * _colCount));
-    expect(_built.length, lessThan(40), reason: '实际构建 ${_built.length} 条，疑似退化为全量渲染');
+    expect(_built.length, lessThan(40),
+        reason: '实际构建 ${_built.length} 条，疑似退化为全量渲染');
     // 首屏必须包含第一组的开头几条
     expect(_built, contains('0-0'));
   });
@@ -155,9 +157,18 @@ void main() {
 
     expect(find.byKey(_key(1, 0)), findsOneWidget, reason: '跨组后新分组的条目应当已滚入视口');
     // 滚到分组起点后：头部占视口顶部 40px，其后紧接第一个条目
-    expect(tester.getTopLeft(find.byKey(_key(1, 0))).dy, closeTo(_headerHeight, 1));
+    expect(tester.getTopLeft(find.byKey(_key(1, 0))).dy,
+        closeTo(_headerHeight, 1));
     // 交叉校验：新的滚动位置应当等于独立算出来的分组偏移
-    expect(expectedGroupOffset(1), closeTo(_topPadding + _groupGap + _headerHeight + _colCount * _rowHeight + (_colCount - 1) * _itemGap, 0.01));
+    expect(
+        expectedGroupOffset(1),
+        closeTo(
+            _topPadding +
+                _groupGap +
+                _headerHeight +
+                _colCount * _rowHeight +
+                (_colCount - 1) * _itemGap,
+            0.01));
   });
 
   testWidgets('移动焦点只重建失去选中与新得到选中的两个格子', (tester) async {
@@ -206,8 +217,10 @@ void main() {
               gap: (row: _groupGap, col: _itemGap),
               initialPosition: (row: 0, col: 0),
               itemCount: (row: _rowCount, col: (_) => _colCount),
-              rowTopBuilder: (context, row) => SizedBox(height: _headerHeight, child: Text('H$row')),
-              onSelect: (position) => selected = '${position.row}-${position.col}',
+              rowTopBuilder: (context, row) =>
+                  SizedBox(height: _headerHeight, child: Text('H$row')),
+              onSelect: (position) =>
+                  selected = '${position.row}-${position.col}',
               itemBuilder: (context, position, isSelected) => SizedBox(
                 key: _key(position.row, position.col),
                 height: _rowHeight,

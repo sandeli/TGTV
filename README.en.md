@@ -27,9 +27,9 @@ The QR page uses no pairing token. The LAN service exposes only the import page 
 
 ## Local data and privacy
 
-The subscription URL, downloaded playlist, EPG cache and app settings are stored in the TV's private local app storage. They are not uploaded to a cloud account or remote control backend. On upgrade, the old user-playlist cache is migrated to persistent local storage; legacy bundled-channel cache and user identifiers are removed.
+The subscription URL, downloaded playlist, EPG cache and app settings are stored in the TV's private local app storage. They are not uploaded to a cloud account or remote control backend. On upgrade, the old user-playlist cache is migrated to persistent local storage; the app no longer reads legacy bundled-channel caches.
 
-Network access is used only to fetch the URL the user entered, obtain EPG data, play channel streams, and query GitHub release information when version information is viewed. The app has no ad or analytics SDK and no remote command, remote configuration, or cloud playlist-storage endpoint.
+Network access is used only to fetch the URL the user entered, obtain EPG data, and play channel streams. The app has no ad or analytics SDK, remote command, remote configuration, remote updater, or cloud playlist-storage endpoint.
 
 ## Build from source
 

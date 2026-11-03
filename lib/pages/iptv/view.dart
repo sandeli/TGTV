@@ -13,6 +13,8 @@ import 'package:video_player_example/common/widgets/mobile_touch_control_bar.dar
 import 'package:video_player_example/pages/index.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
+import 'package:video_player_example/pages/panel/widgets/time.dart';
+import 'package:video_player_example/pages/iptv/widgets/network_speed_indicator.dart';
 import 'package:collection/collection.dart';
 
 import '../../common/utils/debounce.dart';
@@ -29,7 +31,6 @@ class IptvPage extends StatefulWidget {
 class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   final playerStore = GetIt.I<PlayerStore>();
   final iptvStore = GetIt.I<IptvStore>();
-  final updateStore = GetIt.I<UpdateStore>();
 
   // MobX 资源清理列表
   final List<ReactionDisposer> _disposers = [];
@@ -316,9 +317,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       iptvStore.currentIptv = first;
     }
     _logger.debug('首频道设置完成');
-
-    // 启动时不访问远程更新服务；用户打开「关于」页时再检查 fork 发布信息。
-    updateStore.loadCurrentVersion();
   }
 
   @override
@@ -330,6 +328,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
           child: Stack(
             children: [
               _buildPlayer(),
+              _buildPlaybackCornerOverlay(),
               _buildIptvInfo(),
               _buildKeyboardListener(),
               _buildChannelSelect(),
@@ -364,24 +363,67 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     );
   }
 
+  /// 播放时常驻的角落信息：台名、北京时间与设备网络接收速率。
+  Widget _buildPlaybackCornerOverlay() {
+    return Observer(builder: (_) {
+      if (playerStore.state != PlayerState.playing ||
+          iptvStore.currentIptv.name.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return IgnorePointer(
+        child: Stack(
+          children: [
+            Positioned(
+              top: 20.h,
+              left: 20.w,
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 0.42.sw),
+                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgFaded(context, 0.65),
+                  borderRadius: BorderRadius.circular(10).r,
+                ),
+                child: Observer(
+                  builder: (_) => Text(
+                    iptvStore.currentIptv.name,
+                    style: AppTheme.text(AppTheme.fg(context), 28.sp,
+                        weight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16.h,
+              right: 20.w,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgFaded(context, 0.65),
+                  borderRadius: BorderRadius.circular(10).r,
+                ),
+                child: const PanelTime(),
+              ),
+            ),
+            Positioned(
+              right: 20.w,
+              bottom: 20.h,
+              child: const NetworkSpeedIndicator(),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   /// 当前直播源信息
   Widget _buildIptvInfo() {
     return Observer(
       builder: (_) => iptvStore.iptvInfoVisible
           ? Stack(
               children: [
-                // 频道号
-                //
-                // 输入数字选台时右上角要让给待确认的频道号串（_buildChannelSelect）：
-                // 两者都是 top:20 / right:20 的 90.sp 大字，同时出现会直接叠印成一团。
-                if (iptvStore.channelNo.isEmpty)
-                  Positioned(
-                    top: 20.h,
-                    right: 20.w,
-                    child: PanelIptvChannel(iptvStore.currentIptv.channel
-                        .toString()
-                        .padLeft(2, '0')),
-                  ),
                 // 频道信息
                 Positioned(
                   bottom: 0,
