@@ -216,6 +216,18 @@ class _SettingsMainState extends State<SettingsMain> {
         },
       ),
       SettingItem(
+        title: '解码方式',
+        value: () => IptvSettings.decodeMode.label,
+        description: () => '点击轮换自动/硬解/软解；切换后立即重播当前频道',
+        onTap: () {
+          IptvSettings.decodeMode = IptvSettings.decodeMode.next;
+          final current = iptvStore.currentIptv;
+          if (current.url.isNotEmpty) {
+            unawaited(GetIt.I<PlayerStore>().playIptv(current));
+          }
+        },
+      ),
+      SettingItem(
         title: '订阅链接',
         value: () => IptvSettings.customIptvSource.isNotEmpty ? '已导入' : '未导入',
         description: () => IptvSettings.customIptvSource.isEmpty

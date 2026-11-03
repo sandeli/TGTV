@@ -3,6 +3,7 @@ import 'package:fijkplayer_ijkfix/fijkplayer_ijkfix.dart';
 import 'package:flutter/material.dart';
 import 'package:mobx/mobx.dart';
 
+import '../enums/iptv_setting.dart';
 import '../models/iptv.dart';
 import '../utils/logger.dart';
 import '../utils/source_health.dart';
@@ -147,6 +148,15 @@ abstract class PlayerStoreBase with Store {
   /// 上一次下发到原生的 mediacodec 取值（null 表示尚未下发 / 已失效）
   int? _lastMediacodec;
 
+  int _desiredMediacodec({bool respectAutoFallback = true}) {
+    return switch (IptvSettings.decodeMode) {
+      IptvDecodeMode.automatic =>
+        respectAutoFallback && _hwDecodeFailed ? 0 : 1,
+      IptvDecodeMode.hardware => 1,
+      IptvDecodeMode.software => 0,
+    };
+  }
+
   /// 上一次下发的音量 / 请求头，值不变时跳过这次 platform 往返
   double? _lastVolume;
   String? _lastReferer;
@@ -199,7 +209,8 @@ abstract class PlayerStoreBase with Store {
       opt.setPlayerOption("packet-buffering", 0);
       opt.setPlayerOption("infbuf", 0);
       opt.setPlayerOption("framedrop", 5);
-      opt.setPlayerOption("mediacodec", 1);
+      final mediacodec = _desiredMediacodec(respectAutoFallback: false);
+      opt.setPlayerOption("mediacodec", mediacodec);
       opt.setPlayerOption("mediacodec-auto-rotate", 1);
       opt.setPlayerOption("mediacodec-handle-resolution-change", 1);
       opt.setPlayerOption("mediacodec-hevc", 1);
@@ -212,7 +223,7 @@ abstract class PlayerStoreBase with Store {
 
       await player.applyOptions(opt);
 
-      _lastMediacodec = 1;
+      _lastMediacodec = mediacodec;
       _hwDecodeFailed = false;
       _hwDecodeErrorStreak = 0;
       _logger.debug('预热播放器完成');
@@ -237,7 +248,12 @@ abstract class PlayerStoreBase with Store {
 
   /// 每次播放前下发 mediacodec，取值未变化时跳过
   Future<void> _applyDecodeOptions() async {
-    final value = _hwDecodeFailed ? 0 : 1;
+    final mode = IptvSettings.decodeMode;
+    if (mode != IptvDecodeMode.automatic) {
+      _hwDecodeFailed = false;
+      _hwDecodeErrorStreak = 0;
+    }
+    final value = _desiredMediacodec();
     if (_lastMediacodec == value) return;
     await player.setOption(FijkOption.playerCategory, "mediacodec", value);
     _lastMediacodec = value;
@@ -257,16 +273,19 @@ abstract class PlayerStoreBase with Store {
 
   /// 请求头（referer / user_agent）未变化时不重复下发
   Future<void> _ensureHeaders(Iptv iptv) async {
-    final referer = iptv.url.contains('xuexi.cn') ? 'https://www.xuexi.cn/' : '';
+    final referer =
+        iptv.url.contains('xuexi.cn') ? 'https://www.xuexi.cn/' : '';
     const userAgent = 'Mozilla/5.0';
 
     final futures = <Future<void>>[];
     if (_lastReferer != referer) {
-      futures.add(player.setOption(FijkOption.formatCategory, "referer", referer));
+      futures
+          .add(player.setOption(FijkOption.formatCategory, "referer", referer));
       _lastReferer = referer;
     }
     if (_lastUserAgent != userAgent) {
-      futures.add(player.setOption(FijkOption.formatCategory, "user_agent", userAgent));
+      futures.add(
+          player.setOption(FijkOption.formatCategory, "user_agent", userAgent));
       _lastUserAgent = userAgent;
     }
     if (futures.isNotEmpty) await Future.wait(futures);
@@ -278,7 +297,8 @@ abstract class PlayerStoreBase with Store {
   /// （[SourceHealthUtil.pickBest]），失败过的源会被排到后面。
   @action
   Future<void> playIptv(Iptv iptv) async {
-    await _startPlay(iptv, SourceHealthUtil.pickBest(iptv.url), playback: false);
+    await _startPlay(iptv, SourceHealthUtil.pickBest(iptv.url),
+        playback: false);
   }
 
   /// 播放某段节目的回看录像
@@ -299,7 +319,8 @@ abstract class PlayerStoreBase with Store {
   /// 通过 initPlayer 传入，不设为 observable 以避免重新生成 MobX 代码。
   VoidCallback? onPlaybackEnd;
 
-  Future<void> _startPlay(Iptv iptv, String url, {required bool playback}) async {
+  Future<void> _startPlay(Iptv iptv, String url,
+      {required bool playback}) async {
     final seq = ++_playSeq;
     _playTimestamp = DateTime.now().millisecondsSinceEpoch;
     _rendered = false;
@@ -377,8 +398,7 @@ abstract class PlayerStoreBase with Store {
       if (_disposed || seq != _playSeq) return;
       if (_reachedPicture) return;
 
-      _logger.warning(
-          '起播超时 ${startWatchdogTimeout.inSeconds}s 仍未出画面，判定该源不可用');
+      _logger.warning('起播超时 ${startWatchdogTimeout.inSeconds}s 仍未出画面，判定该源不可用');
       _freezeTimer?.cancel();
       // 卡在 asyncPreparing 不上不下，native 不会给 error 回调，这里主动记一次
       SourceHealthUtil.recordFailure(currentUrl);
@@ -424,7 +444,8 @@ abstract class PlayerStoreBase with Store {
     // 画面已经渲染出来，说明解码链路可用：撤销此前的硬解降级
     if (!_rendered && player.value.videoRenderStart) {
       _rendered = true;
-      if (_hwDecodeFailed || _hwDecodeErrorStreak > 0) {
+      if (IptvSettings.decodeMode == IptvDecodeMode.automatic &&
+          (_hwDecodeFailed || _hwDecodeErrorStreak > 0)) {
         _hwDecodeFailed = false;
         _hwDecodeErrorStreak = 0;
         _logger.debug('解码正常，恢复硬解');
@@ -444,7 +465,9 @@ abstract class PlayerStoreBase with Store {
       // 网络类错误（404 / DNS / 断网）同样走到这里，过去只要出现 error
       // 就把硬解降级且再也不恢复 —— 一次误判就让整场直播都跑 CPU 软解。
       // 只有"还没渲染出画面"才可能是解码问题，并要求连续多次才降级。
-      if (!isSwitching && !_rendered) {
+      if (IptvSettings.decodeMode == IptvDecodeMode.automatic &&
+          !isSwitching &&
+          !_rendered) {
         _hwDecodeErrorStreak++;
         if (_hwDecodeErrorStreak >= _hwFailThreshold && !_hwDecodeFailed) {
           _hwDecodeFailed = true;
@@ -456,8 +479,7 @@ abstract class PlayerStoreBase with Store {
       // 且一旦播放成功立即清除记录，误伤可控。
       SourceHealthUtil.recordFailure(currentUrl);
       _onErrorCallback?.call();
-    }
-    else if (st == FijkState.completed) {
+    } else if (st == FijkState.completed) {
       // 录像播完：直播永远不会走到这里，所以只在回看时有意义
       _cancelWatchdog();
       _freezeTimer?.cancel();
@@ -465,12 +487,12 @@ abstract class PlayerStoreBase with Store {
         _logger.debug('回看播放结束');
         onPlaybackEnd?.call();
       }
-    }
-    else if (st == FijkState.prepared && state == PlayerState.playing) {
+    } else if (st == FijkState.prepared && state == PlayerState.playing) {
       isSwitching = false;
       _cancelWatchdog();
       if (_playTimestamp > 0) {
-        _logger.debug('${isPlayback ? '回看' : '播放器'}就绪耗时: ${DateTime.now().millisecondsSinceEpoch - _playTimestamp}ms');
+        _logger.debug(
+            '${isPlayback ? '回看' : '播放器'}就绪耗时: ${DateTime.now().millisecondsSinceEpoch - _playTimestamp}ms');
         _playTimestamp = 0;
       }
       _startFreezeCheck();
@@ -487,7 +509,7 @@ abstract class PlayerStoreBase with Store {
       // 必须在 runInAction 中更新 MobX 状态
       runInAction(() {
         resolution = newSize;
-        aspectRatio=newSize.aspectRatio;
+        aspectRatio = newSize.aspectRatio;
       });
     }
   }
@@ -531,7 +553,8 @@ abstract class PlayerStoreBase with Store {
           _checkCount++;
           return;
         }
-        _logger.warning("${_freezeCheckInterval.inSeconds * (_checkCount + 1)}s 内未渲染出画面，判定为卡顿");
+        _logger.warning(
+            "${_freezeCheckInterval.inSeconds * (_checkCount + 1)}s 内未渲染出画面，判定为卡顿");
         _onFreezeCallback?.call();
         timer.cancel();
         return;
@@ -581,8 +604,7 @@ abstract class PlayerStoreBase with Store {
       _freezeGraceTimer = null;
       if (_disposed || isSwitching) return;
 
-      _logger.warning(
-          '缓冲中断 ${freezeGraceTimeout.inSeconds}s 未恢复，判定卡顿');
+      _logger.warning('缓冲中断 ${freezeGraceTimeout.inSeconds}s 未恢复，判定卡顿');
       // 停掉轮询，避免同一件事触发两次切源
       _freezeTimer?.cancel();
       _freezeTimer = null;
@@ -605,8 +627,7 @@ abstract class PlayerStoreBase with Store {
       // 期间出过画面就说明起播成功了，别再判死
       if (_disposed || isSwitching || _rendered) return;
 
-      _logger.warning(
-          '起播缓冲 ${startStallTimeout.inSeconds}s 无任何进展，判定该源不可达');
+      _logger.warning('起播缓冲 ${startStallTimeout.inSeconds}s 无任何进展，判定该源不可达');
       _cancelWatchdog();
       _freezeTimer?.cancel();
       _freezeTimer = null;

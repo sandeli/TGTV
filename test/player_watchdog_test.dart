@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fijkplayer_ijkfix/fijkplayer_ijkfix.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player_example/common/index.dart';
 
 /// 测试用的起播时限（真实计时，不走 fake clock，见下方说明）
@@ -34,6 +35,8 @@ class FakeIjkNative {
   /// false = prepared 之后迟迟不出画面（弱网 / GOP 长的源）
   bool emitVideoRenderStart = true;
 
+  final List<int> mediacodecValues = [];
+
   MockStreamHandlerEventSink? _events;
 
   EventChannel get _eventChannel =>
@@ -65,6 +68,18 @@ class FakeIjkNative {
 
   Future<Object?> _handlePlayerCall(MethodCall call) async {
     switch (call.method) {
+      case 'applyOptions':
+        final options = call.arguments as Map;
+        final playerOptions = options[FijkOption.playerCategory] as Map;
+        final mediacodec = playerOptions['mediacodec'];
+        if (mediacodec is int) mediacodecValues.add(mediacodec);
+        break;
+      case 'setOption':
+        final arguments = call.arguments as Map;
+        if (arguments['key'] == 'mediacodec' && arguments['long'] is int) {
+          mediacodecValues.add(arguments['long'] as int);
+        }
+        break;
       case 'setDataSource':
         // 真实 native 也是这么回报的
         _emitState(FijkState.idle, FijkState.initialized);
@@ -112,6 +127,10 @@ class FakeIjkNative {
     _events?.success({'event': 'freeze', 'value': buffering});
   }
 
+  void emitError() {
+    _emitState(FijkState.prepared, FijkState.error);
+  }
+
   /// 推缓冲进度，对应 native 的 BUFFERING_UPDATE。用来表达"数据在进"。
   void emitBufferPos(int millis) {
     _events?.success({'event': 'buffering', 'head': millis, 'percent': 0});
@@ -150,8 +169,14 @@ void main() {
   late FakeIjkNative native;
   final stores = <PlayerStore>[];
 
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await PrefsUtil.init();
+  });
+
   setUp(() {
     native = FakeIjkNative()..install();
+    IptvSettings.decodeMode = IptvDecodeMode.automatic;
     PlayerStoreBase.startWatchdogTimeout = _watchdogTimeout;
     PlayerStoreBase.freezeGraceTimeout = _freezeGrace;
     PlayerStoreBase.startStallTimeout = _stallTimeout;
@@ -168,12 +193,50 @@ void main() {
     PlayerStoreBase.startStallTimeout = _realStallTimeout;
   });
 
-  PlayerStore _createStore({required VoidCallback onError, VoidCallback? onFreeze}) {
+  PlayerStore _createStore(
+      {required VoidCallback onError, VoidCallback? onFreeze}) {
     final store = PlayerStore();
     store.initPlayer(onError: onError, onFreeze: onFreeze ?? () {});
     stores.add(store);
     return store;
   }
+
+  test('强制硬解与软解不受自动回退覆盖，自动模式仍可回退', () async {
+    native.stuckAfterPrepareAsync = false;
+    native.emitVideoRenderStart = false;
+    final store = _createStore(onError: () {});
+    const url = 'http://127.0.0.1:1/live.m3u8';
+
+    IptvSettings.decodeMode = IptvDecodeMode.hardware;
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 1);
+
+    IptvSettings.decodeMode = IptvDecodeMode.software;
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+    native.emitError();
+    await native.deliver();
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+
+    IptvSettings.decodeMode = IptvDecodeMode.automatic;
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    native.emitError();
+    await native.deliver();
+    await store.playIptv(_buildIptv(url));
+    expect(native.mediacodecValues.last, 0);
+  });
 
   test('起播超时：native 卡在 asyncPreparing 时必须有人把它判死', () async {
     var errorCount = 0;
@@ -185,7 +248,8 @@ void main() {
     expect(errorCount, 0);
 
     // 还没到超时
-    await Future<void>.delayed(_watchdogTimeout - const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout - const Duration(milliseconds: 300));
     expect(errorCount, 0);
 
     // 超过看门狗时限：上层要收到 error 才会去切下一个备用源
@@ -208,7 +272,8 @@ void main() {
     expect(store.state, PlayerState.playing);
 
     // 远超过看门狗时限之后，也不该冒出额外的 error
-    await Future<void>.delayed(_watchdogTimeout * 2 + const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout * 2 + const Duration(milliseconds: 300));
     expect(errorCount, 0);
   });
 
@@ -219,7 +284,8 @@ void main() {
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
     await store.disposePlayer();
 
-    await Future<void>.delayed(_watchdogTimeout * 2 + const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+        _watchdogTimeout * 2 + const Duration(milliseconds: 300));
     expect(
       errorCount,
       0,
@@ -232,8 +298,7 @@ void main() {
     native.stuckAfterPrepareAsync = false;
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
     expect(freezeCount, 0);
@@ -243,7 +308,8 @@ void main() {
     await native.deliver();
 
     // 还没到宽限
-    await Future<void>.delayed(_freezeGrace - const Duration(milliseconds: 200));
+    await Future<void>.delayed(
+        _freezeGrace - const Duration(milliseconds: 200));
     expect(freezeCount, 0);
 
     // 宽限一过立刻判死。旧逻辑靠 5 秒轮询 + 两次采样，这里要等到 10 秒
@@ -259,8 +325,7 @@ void main() {
     native.stuckAfterPrepareAsync = false;
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
 
@@ -287,8 +352,7 @@ void main() {
     PlayerStoreBase.startWatchdogTimeout = const Duration(seconds: 30);
 
     var freezeCount = 0;
-    final store =
-        _createStore(onError: () {}, onFreeze: () => freezeCount++);
+    final store = _createStore(onError: () {}, onFreeze: () => freezeCount++);
 
     await store.playIptv(_buildIptv('http://127.0.0.1:1/live.m3u8'));
 
