@@ -9,7 +9,7 @@ class NetworkSpeedIndicator extends StatefulWidget {
   const NetworkSpeedIndicator({super.key});
 
   static const MethodChannel _channel =
-      MethodChannel('com.htwmedia.htv/network_stats');
+      MethodChannel('com.sandeli.tgtv/network_stats');
 
   /// 将每秒接收字节数格式化为适合电视屏幕的短标签。
   static String formatRate(num? bytesPerSecond) {

@@ -1,4 +1,4 @@
-package io.flutter.plugins
+package com.sandeli.tgtv
 
 import android.os.Build
 import android.net.TrafficStats
@@ -8,7 +8,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.htwmedia.htv/security"
+    private val CHANNEL = "com.sandeli.tgtv/security"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -23,7 +23,7 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "com.htwmedia.htv/network_stats"
+            "com.sandeli.tgtv/network_stats"
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getUidReceivedBytes" -> result.success(

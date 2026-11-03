@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 class SecurityCheck {
-  static const _channel = MethodChannel('com.htwmedia.htv/security');
+  static const _channel = MethodChannel('com.sandeli.tgtv/security');
 
   /// 检查设备是否已 Root
   static Future<bool> isRooted() async {

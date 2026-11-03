@@ -27,7 +27,7 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
         textBaseline: TextBaseline.alphabetic,
         children: [
           Text(
-            'HTV',
+            'TGTV',
             style: AppTheme.text(fg, isPhone ? 32.sp : 60.sp,
                 weight: FontWeight.bold),
           ),

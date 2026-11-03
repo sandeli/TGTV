@@ -1,6 +1,6 @@
 <div align="center">
 
-# HTV · 本机 IPTV 播放器
+# TGTV · 本机 IPTV 播放器
 
 **无内置频道源、无账号：导入自己的播放列表，在 Android 手机、电视或电视盒子播放。**
 
@@ -12,8 +12,7 @@
 ---
 
 <p align="center">
-  <img src="assets/images/screenshot-panel.jpg" width="49%" alt="频道面板与播放列表">
-  <img src="assets/images/screenshot-settings.jpg" width="49%" alt="播放器设置面板">
+  <img src="assets/images/screenshot-panel.jpg" width="100%" alt="频道面板与播放列表">
 </p>
 
 ## 这是一个空壳播放器
@@ -32,7 +31,7 @@ App 不内置频道列表，也不要求登录。首次打开时列表为空；�
 
 ## 数据与隐私
 
-订阅 URL、下载的播放列表、节目单缓存和应用设置保存在电视本机的应用私有存储中，不上传到云端或远程控制后台。升级时，旧版用户订阅缓存会迁移到本机持久目录；应用不再读取旧版内置频道缓存。
+订阅 URL、下载的播放列表、节目单缓存和应用设置保存在电视本机的应用私有存储中，不上传到云端或远程控制后台。升级时，TGTV 旧版用户订阅缓存会迁移到本机持久目录；应用不再读取旧版内置频道缓存。TGTV 使用新的 Android 应用 ID `com.sandeli.tgtv`，与 HTV 独立安装，原 HTV 的本机数据不会迁移到 TGTV。
 
 网络仅用于访问用户主动填写的播放列表 URL、获取节目单和播放频道流。项目不包含广告或统计 SDK；没有远程命令、远程配置下发、远程更新或云端订阅保存接口。
 

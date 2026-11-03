@@ -40,7 +40,7 @@ apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 apply plugin: 'kotlin-android'
 
 android {
-    namespace 'com.htwmedia.htv'
+    namespace 'com.sandeli.tgtv'
     compileSdk flutter.compileSdkVersion
 
     compileOptions {
@@ -57,7 +57,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.htwmedia.htv"
+        applicationId "com.sandeli.tgtv"
         // 保持 Android 4.4 (API 19) 兼容；使用 Flutter 3.22 前的引擎构建。
         minSdkVersion 19
         targetSdkVersion 29
@@ -107,12 +107,6 @@ android {
     }
     lint {
         disable 'InvalidPackage'
-    }
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def apkName = "HTV-${variant.versionName}"
-            outputFileName = new File(apkName + ".apk")
-        }
     }
 }
 

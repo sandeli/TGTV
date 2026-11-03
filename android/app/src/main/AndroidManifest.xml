@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="com.htwmedia.htv">
+  package="com.sandeli.tgtv">
 
   <uses-feature android:name="android.software.leanback" android:required="false" />
   <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -7,13 +7,13 @@
   <application
     android:icon="@mipmap/ic_launcher"
     android:banner="@mipmap/ic_launcher"
-    android:label="HTV"
+    android:label="TGTV"
       android:hardwareAccelerated="true"
       android:largeHeap="true"
       android:networkSecurityConfig="@xml/network_security_config">
     <activity
       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection"
-      android:name="io.flutter.plugins.MainActivity"
+      android:name="com.sandeli.tgtv.MainActivity"
       android:theme="@style/LaunchTheme"
       android:windowSoftInputMode="adjustResize">
       <meta-data

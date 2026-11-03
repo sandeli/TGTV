@@ -1,6 +1,6 @@
 <div align="center">
 
-# HTV · Local IPTV Player
+# TGTV · Local IPTV Player
 
 **No bundled channel list and no account. Import your own playlist for Android phones, TVs and TV boxes.**
 
@@ -13,7 +13,7 @@
 
 ## An empty-shell player
 
-HTV ships without channel sources and does not require an account. The list is empty on first launch; channels come only from a playlist that you import. Remote-control and touch navigation, favorites, failover, catch-up and EPG features remain (catch-up and EPG depend on the playlist or guide provider).
+TGTV ships without channel sources and does not require an account. The list is empty on first launch; channels come only from a playlist that you import. Remote-control and touch navigation, favorites, failover, catch-up and EPG features remain (catch-up and EPG depend on the playlist or guide provider).
 
 ## Import a playlist
 
@@ -27,7 +27,7 @@ The QR page uses no pairing token. The LAN service exposes only the import page 
 
 ## Local data and privacy
 
-The subscription URL, downloaded playlist, EPG cache and app settings are stored in the TV's private local app storage. They are not uploaded to a cloud account or remote control backend. On upgrade, the old user-playlist cache is migrated to persistent local storage; the app no longer reads legacy bundled-channel caches.
+The subscription URL, downloaded playlist, EPG cache and app settings are stored in the TV's private local app storage. They are not uploaded to a cloud account or remote control backend. On upgrade, TGTV's legacy user-playlist cache is migrated to persistent local storage; the app no longer reads bundled-channel caches. TGTV uses the new Android application ID `com.sandeli.tgtv` and installs separately from HTV; local HTV data is not migrated.
 
 Network access is used only to fetch the URL the user entered, obtain EPG data, and play channel streams. The app has no ad or analytics SDK, remote command, remote configuration, remote updater, or cloud playlist-storage endpoint.
 

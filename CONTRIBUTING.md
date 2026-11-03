@@ -1,6 +1,6 @@
 # 贡献指南 / Contributing
 
-感谢愿意为 HTV 出力！无论是报一个失效频道、修一个 UI 细节还是加一个新功能，都欢迎。
+感谢愿意为 TGTV 出力！无论是报一个失效频道、修一个 UI 细节还是加一个新功能，都欢迎。
 
 ## 反馈比写代码更重要
 
@@ -13,8 +13,8 @@
 - Android 构建需要 Android SDK；调试真机建议直接用电视盒子或手机
 
 ```bash
-git clone https://github.com/HTWMedia/HTV.git
-cd HTV
+git clone https://github.com/sandeli/TGTV.git
+cd TGTV
 flutter pub get
 
 # MobX 状态管理使用代码生成，改动 store 后需要重新生成：
