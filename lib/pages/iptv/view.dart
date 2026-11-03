@@ -9,6 +9,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mobx/mobx.dart';
 import 'package:video_player_example/common/index.dart';
 import 'package:video_player_example/common/widgets/easy_keyboard_listener.dart';
+import 'package:video_player_example/common/widgets/mobile_touch_control_bar.dart';
 import 'package:video_player_example/pages/index.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
@@ -34,14 +35,17 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   final List<ReactionDisposer> _disposers = [];
 
   // 将 Debounce 提升为类成员，便于在 dispose 中清理
-  final Debounce _debounce = Debounce(duration: const Duration(milliseconds: 100));
+  final Debounce _debounce =
+      Debounce(duration: const Duration(milliseconds: 100));
 
   // 上次播放的频道下标单独去抖写盘：它是同步刷 SharedPreferences，
   // 连按一次换台就是几十次磁盘写，没必要实时落盘。
-  final Debounce _prefsDebounce = Debounce(duration: const Duration(seconds: 1));
+  final Debounce _prefsDebounce =
+      Debounce(duration: const Duration(seconds: 1));
 
   Timer? _refreshTimer;
   final _focusNode = FocusNode();
+
   /// 本次换台已经试过的源
   ///
   /// 配合 [SourceHealthUtil.ordered] 逐个往下试，而不是按下标盲轮转：坏源排在后
@@ -67,7 +71,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   }
 
   @override
-  void dispose()  {
+  void dispose() {
     // 1. 清理 MobX Reactions
     for (var disposer in _disposers) {
       disposer();
@@ -85,8 +89,8 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.removeObserver(this);
     _focusNode.dispose();
-      playerStore.disposePlayer();
-      super.dispose();
+    playerStore.disposePlayer();
+    super.dispose();
   }
 
   /// 🔹监听应用生命周期，按 Home 键时应用进入后台
@@ -108,8 +112,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
         }
       });
       _startAutoRefresh();
-    }
-    else if (state == AppLifecycleState.paused) {
+    } else if (state == AppLifecycleState.paused) {
       // 应用进入后台，按 Home 键也会触发
       // 后台随时可能被系统回收，先把播放位置落盘
       _prefsDebounce.cancel();
@@ -172,9 +175,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(SnackBar(
-          content: Text(sources.length > 1
-              ? "所有直播源均不可用"
-              : "该直播源暂不可用，请稍后重试"),
+          content: Text(sources.length > 1 ? "所有直播源均不可用" : "该直播源暂不可用，请稍后重试"),
           duration: const Duration(milliseconds: 1500),
         ));
       playerStore.isSwitching = false;
@@ -278,7 +279,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
 // 存储清理函数
     _disposers.add(iptvChangeDisposer);
 
-
     // 追踪 iptvList 变化，刷新 EPG
     final listChangeDisposer = reaction((_) => iptvStore.iptvList, (list) {
       iptvStore.refreshEpgList();
@@ -294,7 +294,8 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       final replacement = list.firstWhereOrNull((item) =>
           item.name == current.name && item.tvgName == current.tvgName);
       iptvStore.currentIptv = replacement ??
-          list.elementAtOrNull(IptvSettings.initialIptvIdx) ?? list.first;
+          list.elementAtOrNull(IptvSettings.initialIptvIdx) ??
+          list.first;
     });
     // 存储清理函数
     _disposers.add(listChangeDisposer);
@@ -305,10 +306,12 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       playerStore.warmUp(),
     ]);
 
-    _logger.debug('准备设置首频道: ipetvList长度=${iptvStore.iptvList.length}, initialIptvIdx=${IptvSettings.initialIptvIdx}');
+    _logger.debug(
+        '准备设置首频道: ipetvList长度=${iptvStore.iptvList.length}, initialIptvIdx=${IptvSettings.initialIptvIdx}');
     if (iptvStore.iptvList.isNotEmpty) {
-      final first = iptvStore.iptvList.elementAtOrNull(IptvSettings.initialIptvIdx) ??
-          iptvStore.iptvList.first;
+      final first =
+          iptvStore.iptvList.elementAtOrNull(IptvSettings.initialIptvIdx) ??
+              iptvStore.iptvList.first;
       _logger.debug('设置当前频道: ${first.name}');
       iptvStore.currentIptv = first;
     }
@@ -330,6 +333,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
               _buildIptvInfo(),
               _buildKeyboardListener(),
               _buildChannelSelect(),
+              _buildTouchControls(),
               _buildListPlaceholder(),
             ],
           ),
@@ -363,46 +367,44 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   /// 当前直播源信息
   Widget _buildIptvInfo() {
     return Observer(
-      builder: (_) =>
-      iptvStore.iptvInfoVisible
+      builder: (_) => iptvStore.iptvInfoVisible
           ? Stack(
-        children: [
-          // 频道号
-          //
-          // 输入数字选台时右上角要让给待确认的频道号串（_buildChannelSelect）：
-          // 两者都是 top:20 / right:20 的 90.sp 大字，同时出现会直接叠印成一团。
-          if (iptvStore.channelNo.isEmpty)
-            Positioned(
-              top: 20.h,
-              right: 20.w,
-              child: PanelIptvChannel(
-                  iptvStore.currentIptv.channel.toString().padLeft(2, '0')),
-            ),
-          // 频道信息
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20).r,
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20).r,
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgFaded(context, 0.8),
-                      borderRadius: BorderRadius
-                          .circular(20)
-                          .r,
-                    ),
-                    child: PanelIptvInfo(epgShowFull: false),
+              children: [
+                // 频道号
+                //
+                // 输入数字选台时右上角要让给待确认的频道号串（_buildChannelSelect）：
+                // 两者都是 top:20 / right:20 的 90.sp 大字，同时出现会直接叠印成一团。
+                if (iptvStore.channelNo.isEmpty)
+                  Positioned(
+                    top: 20.h,
+                    right: 20.w,
+                    child: PanelIptvChannel(iptvStore.currentIptv.channel
+                        .toString()
+                        .padLeft(2, '0')),
                   ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      )
+                // 频道信息
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(20).r,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20).r,
+                          decoration: BoxDecoration(
+                            color: AppTheme.bgFaded(context, 0.8),
+                            borderRadius: BorderRadius.circular(20).r,
+                          ),
+                          child: PanelIptvInfo(epgShowFull: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
           : const SizedBox.shrink(),
     );
   }
@@ -436,21 +438,66 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
           }
           return true;
         },
-        LogicalKeyboardKey.arrowLeft: () { iptvStore.currentIptv = iptvStore.getPrevGroupIptv(); return true; },
-        LogicalKeyboardKey.arrowRight: () { iptvStore.currentIptv = iptvStore.getNextGroupIptv(); return true; },
-        LogicalKeyboardKey.settings: () { _openSettings(); return true; },
-        LogicalKeyboardKey.contextMenu: () { _openSettings(); return true; },
-        LogicalKeyboardKey.help: () { _openSettings(); return true; },
-        LogicalKeyboardKey.digit0: () { iptvStore.inputChannelNo('0'); return true; },
-        LogicalKeyboardKey.digit1: () { iptvStore.inputChannelNo('1'); return true; },
-        LogicalKeyboardKey.digit2: () { iptvStore.inputChannelNo('2'); return true; },
-        LogicalKeyboardKey.digit3: () { iptvStore.inputChannelNo('3'); return true; },
-        LogicalKeyboardKey.digit4: () { iptvStore.inputChannelNo('4'); return true; },
-        LogicalKeyboardKey.digit5: () { iptvStore.inputChannelNo('5'); return true; },
-        LogicalKeyboardKey.digit6: () { iptvStore.inputChannelNo('6'); return true; },
-        LogicalKeyboardKey.digit7: () { iptvStore.inputChannelNo('7'); return true; },
-        LogicalKeyboardKey.digit8: () { iptvStore.inputChannelNo('8'); return true; },
-        LogicalKeyboardKey.digit9: () { iptvStore.inputChannelNo('9'); return true; },
+        LogicalKeyboardKey.arrowLeft: () {
+          iptvStore.currentIptv = iptvStore.getPrevGroupIptv();
+          return true;
+        },
+        LogicalKeyboardKey.arrowRight: () {
+          iptvStore.currentIptv = iptvStore.getNextGroupIptv();
+          return true;
+        },
+        LogicalKeyboardKey.settings: () {
+          _openSettings();
+          return true;
+        },
+        LogicalKeyboardKey.contextMenu: () {
+          _openSettings();
+          return true;
+        },
+        LogicalKeyboardKey.help: () {
+          _openSettings();
+          return true;
+        },
+        LogicalKeyboardKey.digit0: () {
+          iptvStore.inputChannelNo('0');
+          return true;
+        },
+        LogicalKeyboardKey.digit1: () {
+          iptvStore.inputChannelNo('1');
+          return true;
+        },
+        LogicalKeyboardKey.digit2: () {
+          iptvStore.inputChannelNo('2');
+          return true;
+        },
+        LogicalKeyboardKey.digit3: () {
+          iptvStore.inputChannelNo('3');
+          return true;
+        },
+        LogicalKeyboardKey.digit4: () {
+          iptvStore.inputChannelNo('4');
+          return true;
+        },
+        LogicalKeyboardKey.digit5: () {
+          iptvStore.inputChannelNo('5');
+          return true;
+        },
+        LogicalKeyboardKey.digit6: () {
+          iptvStore.inputChannelNo('6');
+          return true;
+        },
+        LogicalKeyboardKey.digit7: () {
+          iptvStore.inputChannelNo('7');
+          return true;
+        },
+        LogicalKeyboardKey.digit8: () {
+          iptvStore.inputChannelNo('8');
+          return true;
+        },
+        LogicalKeyboardKey.digit9: () {
+          iptvStore.inputChannelNo('9');
+          return true;
+        },
       },
       onKeyLongTap: {
         LogicalKeyboardKey.select: () {
@@ -481,7 +528,10 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       // 会被面板里的列表接走，表现为"面板刚打开就自动选台又关掉"。
       // 这里与 TwoDimensionListView 的长按判定保持一致。
       onKeyUp: {
-        LogicalKeyboardKey.enter: () { _openPanel(); return true; },
+        LogicalKeyboardKey.enter: () {
+          _openPanel();
+          return true;
+        },
         LogicalKeyboardKey.select: () {
           // 长按已经把设置页弹出来了，松手不再补一个频道面板
           if (_longSelectFired) {
@@ -501,8 +551,9 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     return SwipeGestureDetector(
       onSwipeUp: () => iptvStore.currentIptv = iptvStore.getNextIptv(),
       onSwipeDown: () => iptvStore.currentIptv = iptvStore.getPrevIptv(),
-      // onDragLeft: () => iptvStore.currentIptv = iptvStore.getPrevGroupIptv(),
-      // onDragRight: () => iptvStore.currentIptv = iptvStore.getNextGroupIptv(),
+      // 左滑进入下一分组，右滑回到上一分组；与遥控器左右键一致。
+      onSwipeLeft: () => iptvStore.currentIptv = iptvStore.getNextGroupIptv(),
+      onSwipeRight: () => iptvStore.currentIptv = iptvStore.getPrevGroupIptv(),
       child: GestureDetector(
         // 单击必须「立刻」生效：只要同一个 GestureDetector 上还挂着 onDoubleTap，
         // Flutter 就要等约 300ms 的双击判定窗口过去才敢回调 onTap，
@@ -534,6 +585,8 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
 
         final failed = status == IptvListStatus.failed;
         final empty = status == IptvListStatus.empty;
+        final screen = MediaQuery.of(context).size;
+        final isPhone = screen.shortestSide < 600;
 
         return Positioned.fill(
           child: Container(
@@ -547,32 +600,72 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
                         color: Colors.orange, size: 56)
                   else if (empty)
                     Icon(Icons.playlist_add,
-                        color: AppTheme.fgFaded(context, AppTheme.oSecondary), size: 56)
+                        color: AppTheme.fgFaded(context, AppTheme.oSecondary),
+                        size: 56)
                   else
                     CircularProgressIndicator(
                         color: AppTheme.fgFaded(context, AppTheme.oSecondary)),
                   SizedBox(height: 20.h),
                   Text(
-                    empty ? '尚未导入直播源' : failed ? '播放列表获取失败' : '正在获取播放列表…',
-                    style: AppTheme.text(AppTheme.fg(context), 28.sp),
+                    empty
+                        ? '尚未导入直播源'
+                        : failed
+                            ? '播放列表获取失败'
+                            : '正在获取播放列表…',
+                    style: AppTheme.text(
+                        AppTheme.fg(context), isPhone ? 24.sp : 28.sp),
                   ),
                   if (empty) ...[
                     SizedBox(height: 12.h),
                     SizedBox(
-                      width: 1100.w,
+                      width: isPhone ? screen.width * 0.9 : 1100.w,
                       child: Text(
-                        '按菜单 / 设置键 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
+                        isPhone
+                            ? '点下方“设置”直接填写订阅链接；也可从同一 Wi-Fi 的手机浏览器手动粘贴 M3U、TXT（#genre#）或 XSPF 链接导入。'
+                            : '按菜单 / 设置键 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
                         textAlign: TextAlign.center,
                         style: AppTheme.text(
-                            AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),
+                            AppTheme.fgFaded(context, AppTheme.oTertiary),
+                            isPhone ? 14.sp : 22.sp),
                       ),
+                    ),
+                    SizedBox(height: 18.h),
+                    FilledButton.icon(
+                      onPressed: _openSettings,
+                      icon: const Icon(Icons.playlist_add),
+                      label: Text(isPhone ? '设置并导入直播源' : '打开设置导入直播源'),
                     ),
                   ] else if (failed) ...[
                     SizedBox(height: 10.h),
                     Text(
-                      '检查订阅链接与网络后，按 OK 键重试',
+                      isPhone ? '检查订阅链接与网络后点击重试' : '检查订阅链接与网络后，按 OK 键重试',
                       style: AppTheme.text(
-                          AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),
+                          AppTheme.fgFaded(context, AppTheme.oTertiary),
+                          isPhone ? 14.sp : 22.sp),
+                    ),
+                    SizedBox(height: 14.h),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => iptvStore.refreshIptvList(),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('重试'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _openSettings,
+                          icon: const Icon(Icons.settings),
+                          label: const Text('设置'),
+                        ),
+                      ],
+                    ),
+                  ] else if (isPhone) ...[
+                    SizedBox(height: 14.h),
+                    TextButton.icon(
+                      onPressed: _openSettings,
+                      icon: const Icon(Icons.settings),
+                      label: const Text('打开设置'),
                     ),
                   ],
                 ],
@@ -595,6 +688,24 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     );
   }
 
+  /// 手机端可见的触控入口；电视继续使用屏幕原有 D-pad/OK/设置按键。
+  Widget _buildTouchControls() {
+    if (MediaQuery.of(context).size.shortestSide >= 600) {
+      return const SizedBox.shrink();
+    }
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 8,
+      child: MobileTouchControlBar(
+        onPrevious: _previousChannel,
+        onNext: _nextChannel,
+        onOpenChannels: _openPanel,
+        onOpenSettings: _openSettings,
+      ),
+    );
+  }
+
   bool panelOpened = false;
   bool settingsOpened = false;
 
@@ -612,6 +723,18 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
   /// 先到期的那个会把当前频道的信息浮层提前收掉。这里每次重新计时前先取消旧的，
   /// 页面销毁时再统一取消，避免回调打在已销毁的 State 上。
   Timer? _infoHideTimer;
+
+  void _previousChannel() {
+    iptvStore.currentIptv = IptvSettings.channelChangeFlip
+        ? iptvStore.getNextIptv()
+        : iptvStore.getPrevIptv();
+  }
+
+  void _nextChannel() {
+    iptvStore.currentIptv = IptvSettings.channelChangeFlip
+        ? iptvStore.getPrevIptv()
+        : iptvStore.getNextIptv();
+  }
 
   void _openPanel() {
     // 列表还没就绪时面板是空的，此时 OK 键的语义换成"重试"

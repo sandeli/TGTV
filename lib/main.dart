@@ -16,9 +16,6 @@ import 'common/widgets/delay_renderer.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 强制横屏
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
-
   // 小白条、导航栏沉浸
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -75,7 +72,8 @@ class UnsafeDeviceApp extends StatelessWidget {
   final bool isRooted;
   final bool isEmulator;
 
-  const UnsafeDeviceApp({super.key, required this.isRooted, required this.isEmulator});
+  const UnsafeDeviceApp(
+      {super.key, required this.isRooted, required this.isEmulator});
 
   @override
   Widget build(BuildContext context) {
@@ -96,11 +94,15 @@ class UnsafeDeviceApp extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 64),
+                const Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: 64),
                 const SizedBox(height: 24),
                 Text(
                   '安全风险',
-                  style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -123,7 +125,8 @@ class UnsafeDeviceApp extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     child: Text(
                       '退出应用',
-                      style: TextStyle(fontSize: 20, decoration: TextDecoration.none),
+                      style: TextStyle(
+                          fontSize: 20, decoration: TextDecoration.none),
                     ),
                   ),
                 ),
@@ -142,25 +145,33 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const colorScheme = ColorScheme.dark(background: Colors.black);
+    final view = WidgetsBinding.instance.platformDispatcher.views.first;
+    final screenSize = view.physicalSize / view.devicePixelRatio;
+    // 手机使用接近常见手机屏幕的设计稿，保证触控面板和设置字号不会按电视比例缩得过小。
+    // 电视/大屏继续沿用原 1920×1080 比例。
+    final isPhone = screenSize.shortestSide < 600;
 
     return ScreenUtilInit(
-      designSize: const Size(1920, 1080),
+      designSize: isPhone ? const Size(390, 844) : const Size(1920, 1080),
       minTextAdapt: true,
       splitScreenMode: true,
       child: RestartWidget(
-          child: MaterialApp(
-            title: 'HTV',
-            theme: ThemeData(
-              colorScheme: colorScheme,
-            ),
-            localizationsDelegates: const [...GlobalMaterialLocalizations.delegates, GlobalWidgetsLocalizations.delegate],
-            supportedLocales: const [Locale("zh", "CH"), Locale("en", "US")],
-            home: const DelayRenderer(
-              child: DoubleBackExit(
-                child: IptvPage(),
-              ),
+        child: MaterialApp(
+          title: 'HTV',
+          theme: ThemeData(
+            colorScheme: colorScheme,
+          ),
+          localizationsDelegates: const [
+            ...GlobalMaterialLocalizations.delegates,
+            GlobalWidgetsLocalizations.delegate
+          ],
+          supportedLocales: const [Locale("zh", "CH"), Locale("en", "US")],
+          home: const DelayRenderer(
+            child: DoubleBackExit(
+              child: IptvPage(),
             ),
           ),
+        ),
       ),
     );
   }

@@ -219,6 +219,7 @@ class TvDialogField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     final field = TextField(
       controller: controller,
@@ -226,13 +227,14 @@ class TvDialogField extends StatelessWidget {
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       onChanged: onChanged,
-      // 电视端没有软键盘输入法，这套输入辅助只会带来额外开销
-      enableInteractiveSelection: false,
+      // 电视端没有软键盘输入法；手机端需要长按选择、复制粘贴订阅链接。
+      enableInteractiveSelection: isPhone,
       enableSuggestions: false,
       autocorrect: false,
       decoration: InputDecoration.collapsed(
         hintText: hint,
-        hintStyle: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSubtle), fontSize.sp),
+        hintStyle: AppTheme.text(
+            AppTheme.fgFaded(context, AppTheme.oSubtle), fontSize.sp),
       ),
       style: AppTheme.text(fg, fontSize.sp),
     );

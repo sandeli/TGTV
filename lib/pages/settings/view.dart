@@ -20,24 +20,39 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     // 返回方式（点空白 / ESC）与遮罩交给公共外壳处理，与 PanelPage、二维码页一致
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     return TvModalScaffold(
       child: Stack(
         children: [
+          if (isPhone)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: SafeArea(
+                child: IconButton(
+                  tooltip: '关闭设置',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 40).r,
-              child: DefaultTextStyle(
-                style: const TextStyle(decoration: TextDecoration.none),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SettingsAppInfo(),
-                    SizedBox(height: 30.h),
-                    const SettingsMain(),
-                  ],
+            child: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: isPhone ? 16 : 40).r,
+                child: DefaultTextStyle(
+                  style: const TextStyle(decoration: TextDecoration.none),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SettingsAppInfo(),
+                      SizedBox(height: isPhone ? 8 : 30.h),
+                      const SettingsMain(),
+                    ],
+                  ),
                 ),
               ),
             ),

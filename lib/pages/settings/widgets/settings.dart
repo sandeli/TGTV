@@ -87,9 +87,10 @@ class _SettingsMainState extends State<SettingsMain> {
       return;
     }
 
-    final initialSelected = Set<String>.from(IptvSettings.allowedChannels.isNotEmpty
-        ? IptvSettings.allowedChannels
-        : allChannels);
+    final initialSelected = Set<String>.from(
+        IptvSettings.allowedChannels.isNotEmpty
+            ? IptvSettings.allowedChannels
+            : allChannels);
 
     final result = await ChannelSelectDialog.show(
       context,
@@ -101,7 +102,9 @@ class _SettingsMainState extends State<SettingsMain> {
       IptvSettings.allowedChannels = result.toList();
       IptvSettings.iptvSourceSimplify = true;
       IptvSettings.epgCacheHash = 0;
-      iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
+      iptvStore.refreshIptvList().then((_) {
+        if (mounted) setState(() {});
+      });
     }
   }
 
@@ -120,7 +123,9 @@ class _SettingsMainState extends State<SettingsMain> {
         IptvSettings.customIptvSource = value.trim();
         IptvSettings.iptvSourceSimplify = false;
         IptvSettings.epgCacheHash = 0;
-        iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
+        iptvStore.refreshIptvList().then((_) {
+          if (mounted) setState(() {});
+        });
       },
     );
   }
@@ -260,15 +265,20 @@ class _SettingsMainState extends State<SettingsMain> {
 
   @override
   Widget build(BuildContext context) {
+    final screen = MediaQuery.of(context).size;
+    final isPhone = screen.shortestSide < 600;
+    final itemHeight = isPhone ? 160.0 : 190.w;
+    final itemWidth =
+        isPhone ? (screen.width - 32).clamp(280.0, 520.0).toDouble() : 400.w;
     return SizedBox(
-        height: 190.w + 20.h,
-        child: TwoDimensionListView(
-        size: (rowHeight: 190.w, colWidth: 400.w),
+      height: itemHeight + (isPhone ? 12 : 20.h),
+      child: TwoDimensionListView(
+        size: (rowHeight: itemHeight, colWidth: itemWidth),
         scrollOffset: (row: 0, col: -1),
-        gap: (row: 20.h, col: 20.w),
+        gap: (row: 20.h, col: isPhone ? 12 : 20.w),
         itemCount: (
-        row: 1,
-        col: (_) => _settingItemList.length,
+          row: 1,
+          col: (_) => _settingItemList.length,
         ),
         onSelect: (position) => setState(() {
           _settingItemList.elementAtOrNull(position.col)?.onTap();
@@ -287,13 +297,13 @@ class _SettingsMainState extends State<SettingsMain> {
 
   Widget _buildSettingItem(SettingItem item, bool isSelected) {
     final textColor = AppTheme.tileText(context, isSelected);
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return Container(
-      padding: const EdgeInsets.all(30).r,
+      padding: EdgeInsets.all(isPhone ? 14 : 30).r,
       decoration: BoxDecoration(
-        color: isSelected
-            ? AppTheme.fg(context)
-            : AppTheme.bgFaded(context, 0.8),
+        color:
+            isSelected ? AppTheme.fg(context) : AppTheme.bgFaded(context, 0.8),
         borderRadius: BorderRadius.circular(20).r,
       ),
       child: Column(
@@ -305,17 +315,17 @@ class _SettingsMainState extends State<SettingsMain> {
             children: [
               Text(
                 item.title,
-                style: AppTheme.text(textColor, 30.sp),
+                style: AppTheme.text(textColor, isPhone ? 18.sp : 30.sp),
               ),
               Text(
                 item.value(),
-                style: AppTheme.text(textColor, 30.sp),
+                style: AppTheme.text(textColor, isPhone ? 16.sp : 30.sp),
               ),
             ],
           ),
           Text(
             item.description(),
-            style: AppTheme.text(textColor, 24.sp),
+            style: AppTheme.text(textColor, isPhone ? 13.sp : 24.sp),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           )
@@ -343,7 +353,9 @@ class _SettingsMainState extends State<SettingsMain> {
         SettingItem(
           title: '换台反转',
           value: () => IptvSettings.channelChangeFlip ? '反转' : '正常',
-          description: () => IptvSettings.channelChangeFlip ? '方向键上：下一个频道\n方向键下：上一个频道' : '方向键上：上一个频道\n方向键下：下一个频道',
+          description: () => IptvSettings.channelChangeFlip
+              ? '方向键上：下一个频道\n方向键下：上一个频道'
+              : '方向键上：上一个频道\n方向键下：下一个频道',
           onTap: () {
             IptvSettings.channelChangeFlip = !IptvSettings.channelChangeFlip;
             // 同「开机自启」：纯开关，靠手动 rebuild 让同一个 item 重新求值 value/description
@@ -371,14 +383,18 @@ class _SettingsMainState extends State<SettingsMain> {
             } else {
               IptvSettings.iptvSourceSimplify = true;
               IptvSettings.epgCacheHash = 0;
-              iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
+              iptvStore.refreshIptvList().then((_) {
+                if (mounted) setState(() {});
+              });
             }
           },
           onLongTap: () {
             if (!IptvSettings.iptvSourceSimplify) return;
             IptvSettings.iptvSourceSimplify = false;
             IptvSettings.epgCacheHash = 0;
-            iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
+            iptvStore.refreshIptvList().then((_) {
+              if (mounted) setState(() {});
+            });
           },
         ),
         SettingItem(
@@ -392,7 +408,9 @@ class _SettingsMainState extends State<SettingsMain> {
           onLongTap: () {
             IptvSettings.customIptvSource = '';
             IptvSettings.epgCacheHash = 0;
-            iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
+            iptvStore.refreshIptvList().then((_) {
+              if (mounted) setState(() {});
+            });
           },
         ),
       ]),
@@ -403,18 +421,23 @@ class _SettingsMainState extends State<SettingsMain> {
           description: () => '首次加载时可能会有跳帧风险',
           onTap: () {
             IptvSettings.epgEnable = !IptvSettings.epgEnable;
-            iptvStore.refreshEpgList().then((_) { if (mounted) setState(() {}); });
+            iptvStore.refreshEpgList().then((_) {
+              if (mounted) setState(() {});
+            });
           },
         ),
         SettingItem(
           title: '节目单缓存',
           value: () => '当天',
-          description: () => IptvSettings.epgXmlCacheTime > 0 ? "已缓存(点击清除缓存)" : "未缓存",
+          description: () =>
+              IptvSettings.epgXmlCacheTime > 0 ? "已缓存(点击清除缓存)" : "未缓存",
           onTap: () {
             if (IptvSettings.epgXmlCacheTime > 0) {
               IptvSettings.epgXmlCacheTime = 0;
               IptvSettings.epgCacheHash = 0;
-              iptvStore.refreshEpgList().then((_) { if (mounted) setState(() {}); });
+              iptvStore.refreshEpgList().then((_) {
+                if (mounted) setState(() {});
+              });
             }
           },
         ),
@@ -430,7 +453,8 @@ class _SettingsMainState extends State<SettingsMain> {
             ScaffoldMessenger.of(context)
               ..clearSnackBars()
               ..showSnackBar(SnackBar(
-                content: Text('回看时区偏移已改为 ${IptvSettings.catchupUtcOffsetHours}h'),
+                content:
+                    Text('回看时区偏移已改为 ${IptvSettings.catchupUtcOffsetHours}h'),
                 duration: const Duration(seconds: 2),
               ));
           },
@@ -474,8 +498,9 @@ class _SettingsMainState extends State<SettingsMain> {
     HttpClient? client;
     try {
       client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-      final req =
-          await client.getUrl(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final req = await client
+          .getUrl(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
       final resp = await req.close().timeout(const Duration(seconds: 10));
       final bytes = <int>[];
       await resp.forEach(bytes.addAll);
@@ -562,7 +587,9 @@ class _SettingsMainState extends State<SettingsMain> {
         report.add('HTTP ${r.status}');
         continue;
       }
-      if (live.status >= 0 && live.bytes.isNotEmpty && _sameBytes(live.bytes, r.bytes)) {
+      if (live.status >= 0 &&
+          live.bytes.isNotEmpty &&
+          _sameBytes(live.bytes, r.bytes)) {
         report.add('HTTP ${r.status}，但内容与直播逐字节相同 → 参数被忽略');
         continue;
       }

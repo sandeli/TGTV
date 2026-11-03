@@ -44,7 +44,8 @@ class _PanelPageState extends State<PanelPage> {
       child: Row(
         children: [
           Observer(
-            builder: (_) => PanelIptvChannel(iptvStore.currentIptv.channel.toString().padLeft(2, '0')),
+            builder: (_) => PanelIptvChannel(
+                iptvStore.currentIptv.channel.toString().padLeft(2, '0')),
           ),
           // 分隔符
           Padding(
@@ -63,16 +64,28 @@ class _PanelPageState extends State<PanelPage> {
     );
   }
 
-  Widget _buildPanelContent() {
+  Widget _buildPanelContent({required bool isPhone}) {
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UnconstrainedBox(
-            alignment: Alignment.topLeft,
-            child: PanelIptvInfo(),
-          ),
+          if (isPhone)
+            Row(
+              children: [
+                Expanded(child: PanelIptvInfo()),
+                IconButton(
+                  tooltip: '关闭频道列表',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ],
+            )
+          else
+            UnconstrainedBox(
+              alignment: Alignment.topLeft,
+              child: PanelIptvInfo(),
+            ),
           SizedBox(height: 16.h),
           PanelPlayerInfo(),
           SizedBox(height: 8.h),
@@ -84,16 +97,22 @@ class _PanelPageState extends State<PanelPage> {
 
   // 底部
   Positioned _buildBottom() {
+    final screen = MediaQuery.of(context).size;
+    final isPhone = screen.shortestSide < 600;
+    final panelWidth =
+        isPhone ? (screen.width * 0.92).clamp(0.0, 520.0).toDouble() : 360.w;
+    final panel = Container(
+      padding: EdgeInsets.only(left: isPhone ? 16 : 40).r,
+      child: _buildPanelContent(isPhone: isPhone),
+    );
+
     return Positioned(
       top: 0,
       bottom: 0,
       left: 0,
       child: SizedBox(
-        width: 360.w,
-        child: Container(
-          padding: const EdgeInsets.only(left: 40).r,
-          child: _buildPanelContent(),
-        ),
+        width: panelWidth,
+        child: isPhone ? SafeArea(child: panel) : panel,
       ),
     );
   }

@@ -41,6 +41,7 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
 
   /// 聚焦态 + 点击 + OK/回车皆可触发的更新按钮
   Widget _buildUpdateButton() {
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     return Focus(
       focusNode: _updateButtonFocusNode,
       onKeyEvent: (node, event) {
@@ -66,16 +67,21 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
           builder: (context, _) {
             final focused = _updateButtonFocusNode.hasFocus;
             return Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+              padding: EdgeInsets.symmetric(
+                horizontal: isPhone ? 12 : 16.w,
+                vertical: isPhone ? 8 : 4.h,
+              ),
               decoration: BoxDecoration(
                 color: Colors.green,
                 borderRadius: BorderRadius.circular(8).r,
                 // 遥控器用户看不出焦点在哪儿，给一个明确的描边
-                border: focused ? Border.all(color: Colors.white, width: 3.w) : null,
+                border: focused
+                    ? Border.all(color: Colors.white, width: 3.w)
+                    : null,
               ),
               child: Text(
                 '下载更新',
-                style: AppTheme.text(Colors.white, 24.sp),
+                style: AppTheme.text(Colors.white, isPhone ? 14.sp : 24.sp),
               ),
             );
           },
@@ -87,6 +93,7 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,32 +105,43 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
             children: [
               Text(
                 'HTV',
-                style: AppTheme.text(fg, 60.sp, weight: FontWeight.bold),
+                style: AppTheme.text(fg, isPhone ? 32.sp : 60.sp,
+                    weight: FontWeight.bold),
               ),
-              SizedBox(width: 20.w),
+              SizedBox(width: isPhone ? 8 : 20.w),
               Text(
                 'v${updateStore.currentVersion}',
-                style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary), 30.sp, weight: FontWeight.bold),
+                style: AppTheme.text(
+                    AppTheme.fgFaded(context, AppTheme.oSecondary),
+                    isPhone ? 16.sp : 30.sp,
+                    weight: FontWeight.bold),
               ),
-              SizedBox(width: 20.w),
+              SizedBox(width: isPhone ? 8 : 20.w),
               if (updateStore.updating)
                 Text(
-                  updateStore.downloadProgress.isNotEmpty ? updateStore.downloadProgress : '检查中...',
-                  style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oTertiary), 24.sp),
+                  updateStore.downloadProgress.isNotEmpty
+                      ? updateStore.downloadProgress
+                      : '检查中...',
+                  style: AppTheme.text(
+                      AppTheme.fgFaded(context, AppTheme.oTertiary),
+                      isPhone ? 13.sp : 24.sp),
                 )
               else if (updateStore.hasUpdate)
                 _buildUpdateButton()
               else if (updateStore.latestRelease.tagName != 'v0.0.0')
                 Text(
                   '已是最新',
-                  style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSubtle), 24.sp),
+                  style: AppTheme.text(
+                      AppTheme.fgFaded(context, AppTheme.oSubtle),
+                      isPhone ? 13.sp : 24.sp),
                 ),
             ],
           ),
         ),
         Text(
           'https://github.com/sandeli/HTV',
-          style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary), 30.sp),
+          style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary),
+              isPhone ? 13.sp : 30.sp),
         ),
       ],
     );
