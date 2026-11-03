@@ -87,50 +87,81 @@ class _SettingsMainState extends State<SettingsMain> {
       return;
     }
 
-    final fg = AppTheme.fg(context);
     await NavigatorUtil.push(
       context,
       TvModalScaffold(
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('扫码导入订阅链接', style: AppTheme.text(fg, 36.sp)),
-              SizedBox(height: 12.h),
-              Text(
-                HttpServerUtil.serverUrl,
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 24.sp),
-              ),
-              SizedBox(height: 12.h),
-              Text(
-                '手机与电视连接同一 Wi-Fi；网页输入框为空，手动粘贴 M3U / TXT / XSPF 链接。\n订阅及设置仅保存在电视本机；此页无配对码，仅在二维码页打开时临时提供播放列表导入。请使用可信 Wi-Fi。',
-                textAlign: TextAlign.center,
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 20.sp),
-              ),
-              SizedBox(height: 24.h),
-              Container(
-                decoration: BoxDecoration(
-                  color: fg,
-                  borderRadius: BorderRadius.circular(20).r,
+          child: Container(
+            width: 1200.w,
+            padding: EdgeInsets.all(32).r,
+            decoration: BoxDecoration(
+              color: AppTheme.qrPanelSurface,
+              borderRadius: BorderRadius.circular(20).r,
+              border: Border.all(color: AppTheme.qrPanelOutline, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.45),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
                 ),
-                padding: const EdgeInsets.all(8),
-                child: SizedBox(
-                  height: 300.h,
-                  width: 300.h,
-                  child: PrettyQrView.data(
-                    data: HttpServerUtil.serverUrl,
-                    decoration: PrettyQrDecoration(
-                      shape: PrettyQrSmoothSymbol(color: AppTheme.bg(context)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '扫码导入订阅链接',
+                  style: AppTheme.text(
+                    AppTheme.qrPanelText,
+                    36.sp,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  HttpServerUtil.serverUrl,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.text(
+                    AppTheme.qrPanelMutedText,
+                    24.sp,
+                    weight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  '手机与电视连接同一 Wi-Fi；网页输入框为空，手动粘贴 M3U / TXT / XSPF 链接。\n订阅及设置仅保存在电视本机；此页无配对码，仅在二维码页打开时临时提供播放列表导入。请使用可信 Wi-Fi。',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.text(AppTheme.qrPanelMutedText, 20.sp),
+                ),
+                SizedBox(height: 24.h),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16).r,
+                    border: Border.all(
+                      color: AppTheme.qrPanelOutline,
+                      width: 1.5,
+                    ),
+                  ),
+                  padding: EdgeInsets.all(12).r,
+                  child: SizedBox(
+                    height: 300.h,
+                    width: 300.h,
+                    child: PrettyQrView.data(
+                      data: HttpServerUtil.serverUrl,
+                      decoration: const PrettyQrDecoration(
+                        shape: PrettyQrSmoothSymbol(color: Colors.black),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(height: 24.h),
-              Text(
-                '点击空白处或按 ESC 返回',
-                style: AppTheme.text(AppTheme.fgFaded(context, 0.5), 20.sp),
-              ),
-            ],
+                SizedBox(height: 24.h),
+                Text(
+                  '点击空白处或按 ESC 返回',
+                  style: AppTheme.text(AppTheme.qrPanelMutedText, 20.sp),
+                ),
+              ],
+            ),
           ),
         ),
       ),

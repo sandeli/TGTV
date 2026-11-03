@@ -12,25 +12,43 @@ class AppTheme {
   // ---------- 取值 ----------
 
   /// 前景色（默认主题下是黑底上的白）
-  static Color fg(BuildContext context) => Theme.of(context).colorScheme.onBackground;
+  static Color fg(BuildContext context) =>
+      Theme.of(context).colorScheme.onBackground;
 
   /// 背景色
-  static Color bg(BuildContext context) => Theme.of(context).colorScheme.background;
+  static Color bg(BuildContext context) =>
+      Theme.of(context).colorScheme.background;
 
   /// 带透明度的前景色
-  static Color fgFaded(BuildContext context, double opacity) => fg(context).withOpacity(opacity);
+  static Color fgFaded(BuildContext context, double opacity) =>
+      fg(context).withOpacity(opacity);
 
   /// 带透明度的背景色
-  static Color bgFaded(BuildContext context, double opacity) => bg(context).withOpacity(opacity);
+  static Color bgFaded(BuildContext context, double opacity) =>
+      bg(context).withOpacity(opacity);
 
   /// 错误色
-  static Color error(BuildContext context) => Theme.of(context).colorScheme.error;
+  static Color error(BuildContext context) =>
+      Theme.of(context).colorScheme.error;
+
+  // ---------- 高对比度电视弹窗 / 二维码卡片 ----------
+  static const dialogSurface = Color(0xFF202124);
+  static const dialogOutline = Color(0xFF8A8A8A);
+  static const dialogFieldFill = Color(0xFF303134);
+  static const dialogFocus = Color(0xFFFFD54F);
+  static const dialogActionFill = Color(0xFFE8EAED);
+  static const dialogActionText = Color(0xFF202124);
+  static const qrPanelSurface = Color(0xFFF1F3F4);
+  static const qrPanelText = Color(0xFF202124);
+  static const qrPanelMutedText = Color(0xFF424242);
+  static const qrPanelOutline = Color(0xFF9AA0A6);
 
   // ---------- 列表块（选中高亮/反色文本） ----------
 
   /// 未选中时列表块的填充色。
   /// 写成 const 是为了避开每帧 `Colors.white.withOpacity(0.12)` 的重复求值。
-  static const unselectedTileFill = Color(0x1FFFFFFF); // Colors.white.withOpacity(0.12)
+  static const unselectedTileFill =
+      Color(0x1FFFFFFF); // Colors.white.withOpacity(0.12)
 
   /// 列表块填充色：选中为前景色实心，未选中为半透明白
   static Color tileFill(BuildContext context, bool selected) =>
@@ -41,7 +59,8 @@ class AppTheme {
       selected ? bg(context) : fg(context);
 
   /// 列表块上的次要文本色
-  static Color tileTextFaded(BuildContext context, bool selected, double opacity) =>
+  static Color tileTextFaded(
+          BuildContext context, bool selected, double opacity) =>
       tileText(context, selected).withOpacity(opacity);
 
   // ---------- 常用透明度档位 ----------

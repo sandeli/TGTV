@@ -139,6 +139,38 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
     return KeyEventResult.ignored;
   }
 
+  ButtonStyle _actionButtonStyle() {
+    return ButtonStyle(
+      backgroundColor: MaterialStateProperty.resolveWith<Color>(
+        (states) => states.contains(MaterialState.focused)
+            ? AppTheme.dialogFocus
+            : AppTheme.dialogActionFill,
+      ),
+      foregroundColor: MaterialStateProperty.all(AppTheme.dialogActionText),
+      textStyle: MaterialStateProperty.all(
+        AppTheme.text(
+          AppTheme.dialogActionText,
+          widget.fontSize.sp,
+          weight: FontWeight.w600,
+        ),
+      ),
+      side: MaterialStateProperty.resolveWith<BorderSide>(
+        (states) => BorderSide(
+          color: states.contains(MaterialState.focused)
+              ? AppTheme.dialogActionText
+              : AppTheme.dialogOutline,
+          width: states.contains(MaterialState.focused) ? 3 : 1.5,
+        ),
+      ),
+      shape: MaterialStateProperty.all(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(8).r),
+      ),
+      padding: MaterialStateProperty.all(
+        EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
@@ -175,12 +207,8 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
                 TextButton(
                   focusNode: _buttonNodes[i],
                   onPressed: _buttons[i].onPressed,
-                  child: Text(
-                    _buttons[i].label,
-                    // 显式带上字号：按钮样式的 ButtonStyleButton 会塞一份
-                    // 主题默认字号进来，不覆盖就掉帧似的变小一截
-                    style: AppTheme.text(fg, widget.fontSize.sp),
-                  ),
+                  style: _actionButtonStyle(),
+                  child: Text(_buttons[i].label),
                 ),
               ],
             ],

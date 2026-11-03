@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:video_player_example/common/style/app_theme.dart';
 import 'package:video_player_example/common/widgets/tv_text_edit_dialog.dart';
 
 /// 和 main.dart 一致的 ScreenUtil 初始化。
@@ -36,6 +37,40 @@ Future<void> _pressKey(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
+  testWidgets('自定义直播源操作按钮有清晰底色并突出遥控焦点', (tester) async {
+    final app = _host(
+      label: 'open',
+      dialog: TvTextEditDialog(
+        title: '自定义直播源',
+        hint: '输入订阅链接',
+        initialValue: '',
+        extraButtons: [TvDialogButton(label: '二维码', onPressed: () {})],
+        onSave: (_) {},
+      ),
+    );
+
+    await tester.pumpWidget(_wrapScreenUtil(app));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final dialog = tester.widget<Dialog>(find.byType(Dialog).last);
+    expect(dialog.backgroundColor, AppTheme.dialogSurface);
+
+    for (final label in ['二维码', '取消', '保存']) {
+      final buttonFinder = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(TextButton),
+      );
+      final button = tester.widget<TextButton>(buttonFinder.first);
+      final background = button.style!.backgroundColor!;
+      expect(background.resolve(<MaterialState>{}), AppTheme.dialogActionFill);
+      expect(
+        background.resolve(<MaterialState>{MaterialState.focused}),
+        AppTheme.dialogFocus,
+      );
+    }
+  });
+
   testWidgets('文本编辑弹窗：初始值回填、取消不落值', (tester) async {
     final saved = <String>[];
     final app = _host(
