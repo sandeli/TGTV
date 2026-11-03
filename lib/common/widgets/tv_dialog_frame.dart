@@ -111,7 +111,6 @@ mixin TvDialogEditStateMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
-    tvEditFocusNode.addListener(_tvSyncEditingFromFocus);
 
     // autofocus 在部分机型上不生效（新路由 scope 里已有焦点），这里兜底一次
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -121,16 +120,9 @@ mixin TvDialogEditStateMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
-    tvEditFocusNode.removeListener(_tvSyncEditingFromFocus);
     tvEditFocusNode.dispose();
     tvRootFocusNode.dispose();
     super.dispose();
-  }
-
-  /// 鼠标/触摸直接点输入框时同步为编辑态，
-  /// 避免出现「焦点在输入框、高亮指示却在别处」的错位
-  void _tvSyncEditingFromFocus() {
-    if (tvEditFocusNode.hasFocus && !tvEditing) tvEnterEditing();
   }
 
   void tvEnterEditing() {
@@ -186,9 +178,9 @@ class TvDialogField extends StatelessWidget {
     required this.focusNode,
     required this.hint,
     required this.active,
+    required this.editing,
     this.fontSize = 24,
     this.leading,
-    this.onTap,
     this.onChanged,
     this.onSubmitted,
     this.horizontalPadding = 12,
@@ -202,13 +194,15 @@ class TvDialogField extends StatelessWidget {
   /// 是否被「选中或编辑中」，为真时描边加粗加亮
   final bool active;
 
+  /// 是否已通过遥控器确认进入文本编辑态。
+  final bool editing;
+
   /// 正文字号（设计稿单位）
   final double fontSize;
 
   /// 前置控件（如搜索图标）
   final Widget? leading;
 
-  final VoidCallback? onTap;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
@@ -219,7 +213,6 @@ class TvDialogField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     final field = TextField(
       controller: controller,
@@ -227,8 +220,8 @@ class TvDialogField extends StatelessWidget {
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       onChanged: onChanged,
-      // 电视端没有软键盘输入法；手机端需要长按选择、复制粘贴订阅链接。
-      enableInteractiveSelection: isPhone,
+      // 订阅链接由电视遥控器/键盘输入，避免手机专用文本选择控制。
+      enableInteractiveSelection: false,
       enableSuggestions: false,
       autocorrect: false,
       decoration: InputDecoration.collapsed(
@@ -251,8 +244,8 @@ class TvDialogField extends StatelessWidget {
         horizontal: horizontalPadding.w,
         vertical: verticalPadding.h,
       ),
-      child: GestureDetector(
-        onTap: onTap,
+      child: IgnorePointer(
+        ignoring: !editing,
         child: leading == null
             ? field
             : Row(
@@ -262,45 +255,6 @@ class TvDialogField extends StatelessWidget {
                   Expanded(child: field),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-/// 弹窗里的高亮块按钮（「全选」「取消」「保存」等）。
-///
-/// 不用 TextButton：那些控件依赖原生焦点遍历，而这里的高亮是容器层
-/// 自己按「区域 + 下标」画的，按钮本身不需要真焦点。
-class TvDialogChip extends StatelessWidget {
-  const TvDialogChip({
-    super.key,
-    required this.label,
-    required this.highlighted,
-    required this.onTap,
-    this.fontSize = 24,
-  });
-
-  final String label;
-  final bool highlighted;
-  final VoidCallback onTap;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = AppTheme.fg(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
-        decoration: BoxDecoration(
-          color: highlighted ? AppTheme.fgFaded(context, 0.12) : null,
-          border: Border.all(
-            color: highlighted ? fg : Colors.transparent,
-            width: 2,
-          ),
-          borderRadius: BorderRadius.circular(8).r,
-        ),
-        child: Text(label, style: AppTheme.text(fg, fontSize.sp)),
       ),
     );
   }

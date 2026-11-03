@@ -396,20 +396,9 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
           return Container();
         }
 
-        return GestureDetector(
-          onTap: () {
-            _changePosition(row: row, col: index);
-            widget.onSelect?.call((row: row, col: index));
-          },
-          onLongPress: () {
-            HapticFeedback.mediumImpact();
-            _changePosition(row: row, col: index);
-            widget.onLongSelect?.call((row: row, col: index));
-          },
-          child: SizedBox(
-            width: widget.size.colWidth,
-            child: _buildSelectableTile(row: row, col: index),
-          ),
+        return SizedBox(
+          width: widget.size.colWidth,
+          child: _buildSelectableTile(row: row, col: index),
         );
       },
     );
@@ -454,20 +443,9 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   }
 
   Widget _buildVerticalItem({required int row, required int col}) {
-    return GestureDetector(
-      onTap: () {
-        _changePosition(row: row, col: col);
-        widget.onSelect?.call((row: row, col: col));
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        _changePosition(row: row, col: col);
-        widget.onLongSelect?.call((row: row, col: col));
-      },
-      child: SizedBox(
-        height: widget.size.rowHeight,
-        child: _buildSelectableTile(row: row, col: col),
-      ),
+    return SizedBox(
+      height: widget.size.rowHeight,
+      child: _buildSelectableTile(row: row, col: col),
     );
   }
 

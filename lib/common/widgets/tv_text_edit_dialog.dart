@@ -17,7 +17,7 @@ class TvDialogButton {
 ///
 /// 焦点环是「输入框 → 自定义按钮 → 取消 → 保存」的一维序列，
 /// 由容器层统一托管方向键与 OK 键，保证「保存」永远可达；
-/// 输入框需要按 OK 进入编辑（或鼠标点击），按返回键退出编辑。
+/// 输入框需要按 OK 进入编辑，按返回键退出编辑。
 class TvTextEditDialog extends StatefulWidget {
   const TvTextEditDialog({
     super.key,
@@ -117,11 +117,13 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
     if (common != null) return common;
 
     final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowRight) {
+    if (key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowRight) {
       _requestFocusIndex(_focusIndex + 1);
       return KeyEventResult.handled;
     }
-    if (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowLeft) {
+    if (key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowLeft) {
       _requestFocusIndex(_focusIndex - 1);
       return KeyEventResult.handled;
     }
@@ -157,7 +159,9 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
             SizedBox(height: 12.h),
             Text(
               widget.subtitle!,
-              style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary), widget.fontSize.sp),
+              style: AppTheme.text(
+                  AppTheme.fgFaded(context, AppTheme.oSecondary),
+                  widget.fontSize.sp),
             ),
           ],
           SizedBox(height: 20.h),
@@ -194,7 +198,7 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
       fontSize: widget.fontSize,
       // 编辑态自然要高亮；非编辑态下随焦点环是否落在输入框上
       active: tvEditing || _focusIndex == _fieldIndex,
-      onTap: tvEnterEditing,
+      editing: tvEditing,
       onSubmitted: (_) => tvExitEditing(),
     );
   }

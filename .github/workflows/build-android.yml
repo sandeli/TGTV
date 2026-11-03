@@ -63,12 +63,18 @@ jobs:
             exit 1
           fi
           for apk in "${APKS[@]}"; do
-            actual="$("$AAPT" dump badging "$apk" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+            badging="$("$AAPT" dump badging "$apk")"
+            actual="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
             if [ "$actual" != "$EXPECTED_PACKAGE" ]; then
               echo "Wrong application ID in $apk: $actual" >&2
               exit 1
             fi
-            echo "Verified $apk: $actual"
+            min_sdk="$(printf '%s\n' "$badging" | sed -n "s/^sdkVersion:'\\([^']*\\)'.*/\\1/p" | head -n 1)"
+            if [ "$min_sdk" != "19" ]; then
+              echo "Wrong minimum Android API in $apk: $min_sdk (expected 19)" >&2
+              exit 1
+            fi
+            echo "Verified $apk: $actual (minimum API $min_sdk)"
           done
           du -h "${APKS[@]}"
 

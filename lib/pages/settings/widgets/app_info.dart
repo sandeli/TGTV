@@ -18,7 +18,6 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
   @override
   Widget build(BuildContext context) {
     final fg = AppTheme.fg(context);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return FutureBuilder<String>(
       future: _version,
@@ -28,14 +27,13 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
         children: [
           Text(
             'TGTV',
-            style: AppTheme.text(fg, isPhone ? 32.sp : 60.sp,
-                weight: FontWeight.bold),
+            style: AppTheme.text(fg, 60.sp, weight: FontWeight.bold),
           ),
-          SizedBox(width: isPhone ? 8 : 20.w),
+          SizedBox(width: 20.w),
           Text(
             snapshot.hasData ? 'v${snapshot.data}' : ' ',
-            style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary),
-                isPhone ? 16.sp : 30.sp,
+            style: AppTheme.text(
+                AppTheme.fgFaded(context, AppTheme.oSecondary), 30.sp,
                 weight: FontWeight.bold),
           ),
         ],

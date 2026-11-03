@@ -146,18 +146,15 @@ class _SettingsMainState extends State<SettingsMain> {
 
   @override
   Widget build(BuildContext context) {
-    final screen = MediaQuery.of(context).size;
-    final isPhone = screen.shortestSide < 600;
-    final itemHeight = isPhone ? 160.0 : 190.w;
-    final itemWidth =
-        isPhone ? (screen.width - 32).clamp(280.0, 520.0).toDouble() : 400.w;
+    const itemHeight = 190.0;
+    final itemWidth = 400.w;
 
     return SizedBox(
-      height: itemHeight + (isPhone ? 12 : 20.h),
+      height: itemHeight + 20.h,
       child: TwoDimensionListView(
         size: (rowHeight: itemHeight, colWidth: itemWidth),
         scrollOffset: (row: 0, col: -1),
-        gap: (row: 20.h, col: isPhone ? 12 : 20.w),
+        gap: (row: 20.h, col: 20.w),
         itemCount: (row: 1, col: (_) => _settingItemList.length),
         onSelect: (position) => setState(() {
           _settingItemList.elementAtOrNull(position.col)?.onTap();
@@ -173,10 +170,9 @@ class _SettingsMainState extends State<SettingsMain> {
 
   Widget _buildSettingItem(SettingItem item, bool isSelected) {
     final textColor = AppTheme.tileText(context, isSelected);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return Container(
-      padding: EdgeInsets.all(isPhone ? 14 : 30).r,
+      padding: EdgeInsets.all(30).r,
       decoration: BoxDecoration(
         color:
             isSelected ? AppTheme.fg(context) : AppTheme.bgFaded(context, 0.8),
@@ -191,17 +187,17 @@ class _SettingsMainState extends State<SettingsMain> {
             children: [
               Text(
                 item.title,
-                style: AppTheme.text(textColor, isPhone ? 18.sp : 30.sp),
+                style: AppTheme.text(textColor, 30.sp),
               ),
               Text(
                 item.value(),
-                style: AppTheme.text(textColor, isPhone ? 16.sp : 30.sp),
+                style: AppTheme.text(textColor, 30.sp),
               ),
             ],
           ),
           Text(
             item.description(),
-            style: AppTheme.text(textColor, isPhone ? 13.sp : 24.sp),
+            style: AppTheme.text(textColor, 24.sp),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

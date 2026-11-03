@@ -18,7 +18,6 @@ class PanelIptvInfo extends StatelessWidget {
     // 同一个 build 里这四个文本要用的颜色是一致的，先取一次
     final fg = AppTheme.fg(context);
     final programmeColor = AppTheme.fgFaded(context, AppTheme.oSecondary);
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,19 +25,8 @@ class PanelIptvInfo extends StatelessWidget {
         Row(
           children: [
             // 频道名称
-            if (isPhone)
-              Expanded(
-                child: Observer(
-                  builder: (_) => Text(
-                    iptvStore.currentIptv.name,
-                    style: AppTheme.text(fg, 24.sp, weight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              )
-            else
-              Observer(
+            Expanded(
+              child: Observer(
                 builder: (_) => Text(
                   iptvStore.currentIptv.name,
                   style: AppTheme.text(fg, 60.sp, weight: FontWeight.bold),
@@ -46,7 +34,8 @@ class PanelIptvInfo extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            SizedBox(width: isPhone ? 8 : 40.w),
+            ),
+            SizedBox(width: 40.w),
             // 播放状态：正常时不渲染任何东西。
             // 原来放着个空 Text('')，每次 Observer 重建都要走一遍文本排版。
             Observer(
@@ -55,8 +44,7 @@ class PanelIptvInfo extends StatelessWidget {
                   return const SizedBox.shrink();
                 return Text(
                   '${playerStore.errorInfo}播放失败！',
-                  style: AppTheme.text(
-                      AppTheme.error(context), isPhone ? 12.sp : 20.sp,
+                  style: AppTheme.text(AppTheme.error(context), 20.sp,
                       weight: FontWeight.bold),
                 );
               },
@@ -67,7 +55,7 @@ class PanelIptvInfo extends StatelessWidget {
         Observer(
           builder: (_) => Text(
             '正在播放：${iptvStore.currentIptvProgrammes.current.isNotEmpty ? iptvStore.currentIptvProgrammes.current : '无节目'}',
-            style: AppTheme.text(programmeColor, isPhone ? 14.sp : 30.sp),
+            style: AppTheme.text(programmeColor, 30.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -75,7 +63,7 @@ class PanelIptvInfo extends StatelessWidget {
         Observer(
           builder: (_) => Text(
             '稍后播放：${iptvStore.currentIptvProgrammes.next.isNotEmpty ? iptvStore.currentIptvProgrammes.next : '无节目'}',
-            style: AppTheme.text(programmeColor, isPhone ? 14.sp : 30.sp),
+            style: AppTheme.text(programmeColor, 30.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

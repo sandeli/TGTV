@@ -82,11 +82,11 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
+    await _pressKey(tester, LogicalKeyboardKey.select);
     await tester.enterText(find.byType(TextField), 'http://example.com/tv.m3u');
     await tester.pumpAndSettle();
 
-    // enterText 会把焦点交给 EditableText，mixin 随即判定为编辑态；
-    // 此时方向键归输入框，必须先按返回键退出编辑才能继续走焦点环
+    // 编辑态下方向键归输入框，必须先按返回键退出编辑才能继续走焦点环
     await _pressKey(tester, LogicalKeyboardKey.escape);
 
     // 输入框 → 取消 → 保存

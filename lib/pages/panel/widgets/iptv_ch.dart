@@ -9,11 +9,9 @@ class PanelIptvChannel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     return Text(
       channel,
-      style: AppTheme.text(AppTheme.fg(context), isPhone ? 48.sp : 90.sp,
-          height: 1),
+      style: AppTheme.text(AppTheme.fg(context), 90.sp, height: 1),
     );
   }
 }

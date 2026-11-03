@@ -101,7 +101,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('一级分类与对应二级频道同时显示，点击分类切换右栏', (tester) async {
+  testWidgets('一级分类与对应二级频道同时显示，遥控器切换分类', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
     await tester.tap(find.text('打开菜单'));
@@ -116,7 +116,9 @@ void main() {
     expect(find.text('新闻频道二'), findsOneWidget);
     expect(find.text('体育频道一'), findsNothing);
 
-    await tester.tap(find.text('体育组'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
     await tester.pumpAndSettle();
 
     expect(find.text('二级菜单 · 体育组'), findsOneWidget);

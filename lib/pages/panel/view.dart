@@ -21,7 +21,7 @@ class _PanelPageState extends State<PanelPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 返回方式（点空白 / ESC）与遮罩交给公共外壳处理。
+    // ESC、系统返回与遮罩交给公共电视弹层处理。
     return TvModalScaffold(
       child: Stack(
         children: [
@@ -60,19 +60,10 @@ class _PanelPageState extends State<PanelPage> {
     );
   }
 
-  Widget _buildPanelContent({required bool isPhone}) {
+  Widget _buildPanelContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (isPhone)
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              tooltip: '关闭频道列表',
-              onPressed: () => Navigator.of(context).maybePop(),
-              icon: const Icon(Icons.close, color: Colors.white),
-            ),
-          ),
         Expanded(child: const PanelIptvList()),
       ].delayed(enable: DebugSettings.delayRender),
     );
@@ -80,13 +71,10 @@ class _PanelPageState extends State<PanelPage> {
 
   Positioned _buildBottom() {
     final screen = MediaQuery.of(context).size;
-    final isPhone = screen.shortestSide < 600;
-    final panelWidth = isPhone
-        ? (screen.width * 0.92).clamp(0.0, 520.0).toDouble()
-        : (screen.width * 0.44).clamp(680.0, 1100.0).toDouble();
+    final panelWidth = (screen.width * 0.44).clamp(680.0, 1100.0).toDouble();
     final panel = Container(
-      padding: EdgeInsets.only(left: isPhone ? 16 : 40).r,
-      child: _buildPanelContent(isPhone: isPhone),
+      padding: EdgeInsets.only(left: 40).r,
+      child: _buildPanelContent(),
     );
 
     return Positioned(
@@ -95,7 +83,7 @@ class _PanelPageState extends State<PanelPage> {
       left: 0,
       child: SizedBox(
         width: panelWidth,
-        child: isPhone ? SafeArea(child: panel) : panel,
+        child: panel,
       ),
     );
   }
