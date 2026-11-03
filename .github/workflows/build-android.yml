@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches:
-      - feature/import-category-menu
+      - main
 
 permissions:
   contents: write
@@ -45,18 +45,18 @@ jobs:
       - name: Publish APK to GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: htv-android-${{ github.run_number }}-${{ github.run_attempt }}
+          TAG_NAME: tgtv-android-${{ github.run_number }}-${{ github.run_attempt }}
         run: |
           gh release create "$TAG_NAME" \
             build/app/outputs/flutter-apk/app-release.apk \
-            --title "HTV Android build #${GITHUB_RUN_NUMBER}" \
+            --title "TGTV Android build #${GITHUB_RUN_NUMBER}" \
             --notes "Automated APK build from ${GITHUB_SHA} (run ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT})." \
             --target "$GITHUB_SHA"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: htv-android-${{ github.sha }}
+          name: tgtv-android-${{ github.sha }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
