@@ -58,8 +58,8 @@ android {
 
     defaultConfig {
         applicationId "com.sandeli.tgtv"
-        // 保持 Android 4.4 (API 19) 兼容；使用 Flutter 3.22 前的引擎构建。
-        minSdkVersion 19
+        // API 18 is an unsupported experiment; see API18_EXPERIMENT.md.
+        minSdkVersion 18
         targetSdkVersion 29
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
