@@ -14,6 +14,7 @@ import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
 import 'package:video_player_example/pages/panel/widgets/time.dart';
 import 'package:video_player_example/pages/iptv/widgets/network_speed_indicator.dart';
+import 'package:video_player_example/pages/iptv/widgets/iptv_player_panel_builder.dart';
 import 'package:collection/collection.dart';
 
 import '../../common/utils/debounce.dart';
@@ -344,11 +345,16 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
       descendantsAreFocusable: false,
       child: Observer(
         builder: (_) {
+          // FijkView 默认面板在无源时也会一直转圈。仅在已选择频道后恢复它，
+          // 这样真正起播或缓冲时仍会显示加载提示。
+          final hasPlaybackSource = iptvStore.currentIptv.url.isNotEmpty;
           return Center(
             child: AspectRatio(
               aspectRatio: playerStore.aspectRatio ?? 16 / 9,
               child: FijkView(
                 player: playerStore.player,
+                panelBuilder: iptvPlayerPanelBuilder(
+                    hasPlaybackSource: hasPlaybackSource),
                 fit: FijkFit.fill,
                 color: Colors.black,
               ),
