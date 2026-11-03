@@ -99,4 +99,16 @@ class AppTheme {
         height: height,
         decoration: TextDecoration.none,
       );
+
+  /// 视频画面上的角落信息：白字直叠视频，轻微暗影帮助复杂画面中辨认。
+  static TextStyle overlayText(double fontSize, {FontWeight? weight}) =>
+      text(Colors.white, fontSize, weight: weight).copyWith(
+        shadows: const [
+          Shadow(
+            color: Color(0xE6000000),
+            blurRadius: 4,
+            offset: Offset(1, 1),
+          ),
+        ],
+      );
 }

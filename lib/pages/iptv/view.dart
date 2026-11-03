@@ -12,8 +12,7 @@ import 'package:video_player_example/common/widgets/easy_keyboard_listener.dart'
 import 'package:video_player_example/pages/index.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_ch.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
-import 'package:video_player_example/pages/panel/widgets/time.dart';
-import 'package:video_player_example/pages/iptv/widgets/network_speed_indicator.dart';
+import 'package:video_player_example/pages/iptv/widgets/playback_corner_overlay.dart';
 import 'package:video_player_example/pages/iptv/widgets/iptv_player_panel_builder.dart';
 import 'package:collection/collection.dart';
 
@@ -373,50 +372,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
         return const SizedBox.shrink();
       }
 
-      return IgnorePointer(
-        child: Stack(
-          children: [
-            Positioned(
-              top: 20.h,
-              left: 20.w,
-              child: Container(
-                constraints: BoxConstraints(maxWidth: 0.42.sw),
-                padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgFaded(context, 0.65),
-                  borderRadius: BorderRadius.circular(10).r,
-                ),
-                child: Observer(
-                  builder: (_) => Text(
-                    iptvStore.currentIptv.name,
-                    style: AppTheme.text(AppTheme.fg(context), 28.sp,
-                        weight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16.h,
-              right: 20.w,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgFaded(context, 0.65),
-                  borderRadius: BorderRadius.circular(10).r,
-                ),
-                child: const PanelTime(),
-              ),
-            ),
-            Positioned(
-              right: 20.w,
-              bottom: 20.h,
-              child: const NetworkSpeedIndicator(),
-            ),
-          ],
-        ),
-      );
+      return PlaybackCornerOverlay(stationName: iptvStore.currentIptv.name);
     });
   }
 
