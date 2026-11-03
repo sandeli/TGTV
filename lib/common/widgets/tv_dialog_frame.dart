@@ -50,7 +50,12 @@ class TvDialogFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppTheme.bg(context),
+      backgroundColor: AppTheme.dialogSurface,
+      elevation: 24,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18).r,
+        side: const BorderSide(color: AppTheme.dialogOutline, width: 2),
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: maxWidth.w,
@@ -234,9 +239,10 @@ class TvDialogField extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
+        color: AppTheme.dialogFieldFill,
         border: Border.all(
-          color: active ? fg : AppTheme.fgFaded(context, 0.3),
-          width: active ? 2 : 1,
+          color: active ? AppTheme.dialogFocus : AppTheme.dialogOutline,
+          width: active ? 3 : 1.5,
         ),
         borderRadius: BorderRadius.circular(8).r,
       ),

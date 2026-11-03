@@ -58,6 +58,21 @@ Widget _app({bool usePanelPage = false}) {
   );
 }
 
+BoxDecoration _tileDecoration(WidgetTester tester, String label) {
+  final tile = tester.widget<Container>(
+    find
+        .ancestor(
+          of: find.text(label),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first,
+  );
+  return tile.decoration! as BoxDecoration;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -126,6 +141,61 @@ void main() {
     expect(find.text('新闻频道一'), findsNothing);
   });
 
+  testWidgets('当前焦点在一级分类和二级频道时都有醒目的描边', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    var decoration = _tileDecoration(tester, '新闻组');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+
+    decoration = _tileDecoration(tester, '新闻频道一');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    decoration = _tileDecoration(tester, '新闻频道二');
+    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect(decoration.boxShadow, isNotEmpty);
+  });
+
+  testWidgets('一级和二级菜单使用更深且不同的低透明度配色', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == AppTheme.categoryMenuSurface,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == AppTheme.channelMenuSurface,
+      ),
+      findsOneWidget,
+    );
+
+    final categoryDecoration = _tileDecoration(tester, '体育组');
+    final channelDecoration = _tileDecoration(tester, '新闻频道二');
+    expect(categoryDecoration.color, AppTheme.categoryMenuTileFill);
+    expect(channelDecoration.color, AppTheme.channelMenuTileFill);
+    expect(categoryDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
+    expect(channelDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
+    expect(categoryDecoration.color, isNot(channelDecoration.color));
+  });
+
   testWidgets('遥控器左右键可切换到频道栏并选台', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
@@ -156,6 +226,31 @@ void main() {
 
     expect(find.text('打开菜单'), findsOneWidget);
     expect(find.text('二级菜单 · 新闻组'), findsNothing);
+  });
+
+  testWidgets('频道菜单十秒无输入后收起，按键会重置计时且仍可再次打开', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app(usePanelPage: true));
+    await tester.tap(find.text('打开菜单'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 9));
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('二级菜单 · 新闻组'), findsNothing);
+    expect(find.text('打开菜单'), findsOneWidget);
+
+    await tester.tap(find.text('打开菜单'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
   });
 
   testWidgets('频道面板顶部不显示节目状态或分辨率', (tester) async {

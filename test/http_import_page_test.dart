@@ -9,7 +9,9 @@ void main() {
     expect(html, contains('id="playlistUrl"'));
     expect(html, contains('autocomplete="off"'));
     expect(html, contains("request.open('POST', '/api/playlist', true)"));
-    expect(html, contains('导入后会替换电视当前保存的订阅链接'));
+    expect(html, contains('按“保存”后才会正式保存并加载'));
+    expect(html, contains("input.value = '';"));
+    expect(html, contains('result && result.message ? result.message'));
     expect(html, isNot(contains('value="')));
     expect(html, isNot(contains('tgys.dpdns.org')));
     expect(html, isNot(contains('HTWMedia.dpdns.org')));

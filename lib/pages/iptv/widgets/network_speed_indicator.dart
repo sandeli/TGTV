@@ -84,20 +84,16 @@ class _NetworkSpeedIndicatorState extends State<NetworkSpeedIndicator> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppTheme.bgFaded(context, 0.65),
-        borderRadius: BorderRadius.circular(10).r,
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.network_check, color: AppTheme.fg(context), size: 22.sp),
+          Icon(Icons.network_check, color: Colors.white, size: 22.sp),
           SizedBox(width: 8.w),
           Text(
             NetworkSpeedIndicator.formatRate(_bytesPerSecond),
-            style: AppTheme.text(AppTheme.fg(context), 20.sp),
+            style: AppTheme.overlayText(20.sp),
           ),
         ],
       ),

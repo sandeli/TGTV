@@ -104,8 +104,9 @@ class _PanelIptvListState extends State<PanelIptvList> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
+            Container(
               width: leftWidth,
+              color: AppTheme.categoryMenuSurface,
               child: TwoDimensionListView(
                 key: const ValueKey('category-list'),
                 focusNode: _categoryFocusNode,
@@ -170,6 +171,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       title: '我的收藏',
                       subtitle: '${favoriteList.length} 个频道',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
                   if (position.row == sourceRow) {
@@ -177,6 +179,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.swap_horiz,
                       label: '切换源',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
                   if (position.row == settingsRow) {
@@ -184,18 +187,25 @@ class _PanelIptvListState extends State<PanelIptvList> {
                       icon: Icons.settings,
                       label: '设置',
                       isSelected: isSelected,
+                      isFocused: !_channelsFocused,
                     );
                   }
 
                   final group =
                       groups.elementAtOrNull(position.row - _firstGroupRow);
                   if (group == null) {
-                    return _buildEmptyItem('暂无分类', isSelected);
+                    return _buildEmptyItem(
+                      '暂无分类',
+                      isSelected,
+                      isFocused: !_channelsFocused,
+                      unselectedFill: AppTheme.categoryMenuTileFill,
+                    );
                   }
                   return _buildCategoryItem(
                     title: group.name,
                     subtitle: '${group.list.length} 个频道',
                     isSelected: isSelected,
+                    isFocused: !_channelsFocused,
                   );
                 },
               ),
@@ -206,70 +216,82 @@ class _PanelIptvListState extends State<PanelIptvList> {
               color: AppTheme.fgFaded(context, 0.22),
             ),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSectionHeader(
-                    '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
-                  ),
-                  Expanded(
-                    child:
-                        LayoutBuilder(builder: (context, channelConstraints) {
-                      return TwoDimensionListView(
-                        key: ValueKey(
-                            'channel-list-${_showFavorites ? 'favorites' : selectedGroup?.name ?? 'empty'}'),
-                        focusNode: _channelFocusNode,
-                        autofocus: _channelsFocused,
-                        verticalLayout: true,
-                        viewportHeight: channelConstraints.maxHeight,
-                        initialPosition: (row: initialChannelPosition, col: 0),
-                        size: (rowHeight: 82.h, colWidth: 0),
-                        scrollOffset: (row: 0, col: 0),
-                        gap: (row: 8.h, col: 4.h),
-                        headerHeightBuilder: (_) => 0,
-                        itemCount: (
-                          row: channelList.isEmpty ? 1 : channelList.length,
-                          col: (_) => 1,
-                        ),
-                        onArrowLeft: _focusCategories,
-                        onSelect: (position) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) return;
-                          iptvStore.currentIptv = iptv;
-                          Navigator.pop(context);
-                        },
-                        onLongSelect: (position) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) return;
-                          iptvStore.toggleFavorite(iptv).then((nowFavorite) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context)
-                              ..clearSnackBars()
-                              ..showSnackBar(SnackBar(
-                                content: Text(nowFavorite
-                                    ? '已收藏「${iptv.name}」'
-                                    : '已取消收藏「${iptv.name}」'),
-                                duration: const Duration(milliseconds: 1200),
-                              ));
-                          });
-                        },
-                        itemBuilder: (context, position, isSelected) {
-                          final iptv =
-                              channelList.elementAtOrNull(position.row);
-                          if (iptv == null) {
-                            return _buildEmptyItem(
-                              _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
+              child: Container(
+                color: AppTheme.channelMenuSurface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildSectionHeader(
+                      '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
+                    ),
+                    Expanded(
+                      child:
+                          LayoutBuilder(builder: (context, channelConstraints) {
+                        return TwoDimensionListView(
+                          key: ValueKey(
+                              'channel-list-${_showFavorites ? 'favorites' : selectedGroup?.name ?? 'empty'}'),
+                          focusNode: _channelFocusNode,
+                          autofocus: _channelsFocused,
+                          verticalLayout: true,
+                          viewportHeight: channelConstraints.maxHeight,
+                          initialPosition: (
+                            row: initialChannelPosition,
+                            col: 0
+                          ),
+                          size: (rowHeight: 82.h, colWidth: 0),
+                          scrollOffset: (row: 0, col: 0),
+                          gap: (row: 8.h, col: 4.h),
+                          headerHeightBuilder: (_) => 0,
+                          itemCount: (
+                            row: channelList.isEmpty ? 1 : channelList.length,
+                            col: (_) => 1,
+                          ),
+                          onArrowLeft: _focusCategories,
+                          onSelect: (position) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) return;
+                            iptvStore.currentIptv = iptv;
+                            Navigator.pop(context);
+                          },
+                          onLongSelect: (position) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) return;
+                            iptvStore.toggleFavorite(iptv).then((nowFavorite) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context)
+                                ..clearSnackBars()
+                                ..showSnackBar(SnackBar(
+                                  content: Text(nowFavorite
+                                      ? '已收藏「${iptv.name}」'
+                                      : '已取消收藏「${iptv.name}」'),
+                                  duration: const Duration(milliseconds: 1200),
+                                ));
+                            });
+                          },
+                          itemBuilder: (context, position, isSelected) {
+                            final iptv =
+                                channelList.elementAtOrNull(position.row);
+                            if (iptv == null) {
+                              return _buildEmptyItem(
+                                _showFavorites ? '还没有收藏频道' : '此分类下暂无频道',
+                                isSelected,
+                                isFocused: _channelsFocused,
+                                unselectedFill: AppTheme.channelMenuTileFill,
+                              );
+                            }
+                            return _buildIptvItem(
+                              iptv,
                               isSelected,
+                              isFocused: _channelsFocused,
                             );
-                          }
-                          return _buildIptvItem(iptv, isSelected);
-                        },
-                      );
-                    }),
-                  ),
-                ],
+                          },
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -294,12 +316,31 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildTile({required bool isSelected, required Widget child}) {
+  Widget _buildTile({
+    required bool isSelected,
+    required bool isFocused,
+    required Color unselectedFill,
+    required Widget child,
+  }) {
+    final showFocus = isSelected && isFocused;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: AppTheme.tileFill(context, isSelected),
+        color: isSelected ? AppTheme.tileFill(context, true) : unselectedFill,
         borderRadius: BorderRadius.circular(10).r,
+        border: Border.all(
+          color: showFocus ? AppTheme.dialogFocus : Colors.transparent,
+          width: 3,
+        ),
+        boxShadow: showFocus
+            ? const [
+                BoxShadow(
+                  color: Color(0xF0000000),
+                  blurRadius: 0,
+                  spreadRadius: 2,
+                ),
+              ]
+            : const [],
       ),
       child: child,
     );
@@ -309,9 +350,12 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required String title,
     required String subtitle,
     required bool isSelected,
+    required bool isFocused,
   }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
+      unselectedFill: AppTheme.categoryMenuTileFill,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -339,9 +383,12 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required IconData icon,
     required String label,
     required bool isSelected,
+    required bool isFocused,
   }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
+      unselectedFill: AppTheme.categoryMenuTileFill,
       child: Row(
         children: [
           Icon(icon,
@@ -361,9 +408,16 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildEmptyItem(String message, bool isSelected) {
+  Widget _buildEmptyItem(
+    String message,
+    bool isSelected, {
+    required bool isFocused,
+    required Color unselectedFill,
+  }) {
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
+      unselectedFill: unselectedFill,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -377,10 +431,16 @@ class _PanelIptvListState extends State<PanelIptvList> {
     );
   }
 
-  Widget _buildIptvItem(Iptv iptv, bool isSelected) {
+  Widget _buildIptvItem(
+    Iptv iptv,
+    bool isSelected, {
+    required bool isFocused,
+  }) {
     final color = AppTheme.tileText(context, isSelected);
     return _buildTile(
       isSelected: isSelected,
+      isFocused: isFocused,
+      unselectedFill: AppTheme.channelMenuTileFill,
       child: Row(
         children: [
           SizedBox(
