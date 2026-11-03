@@ -228,6 +228,31 @@ void main() {
     expect(find.text('二级菜单 · 新闻组'), findsNothing);
   });
 
+  testWidgets('频道菜单十秒无输入后收起，按键会重置计时且仍可再次打开', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app(usePanelPage: true));
+    await tester.tap(find.text('打开菜单'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 9));
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('二级菜单 · 新闻组'), findsNothing);
+    expect(find.text('打开菜单'), findsOneWidget);
+
+    await tester.tap(find.text('打开菜单'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+  });
+
   testWidgets('频道面板顶部不显示节目状态或分辨率', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app(usePanelPage: true));
