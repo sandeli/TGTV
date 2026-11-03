@@ -180,7 +180,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
         // 切换分组时滚动到适当位置
         double offset;
         final colCount = widget.itemCount.col(row);
-        if (col == colCount - 1) {
+        if (colCount > 1 && col == colCount - 1) {
           // 跳到分组最后一条时，滚动到分组底部
           final groupEnd = _getVerticalScrollOffset(row + 1);
           offset =
@@ -321,7 +321,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     final child = widget.verticalLayout
         ? Scrollbar(
             controller: _verticalScrollController,
-            thumbVisibility: true,
+            thumbVisibility: false,
             child: list)
         : list;
     return _buildKeyboardListener(child: child);
@@ -404,7 +404,9 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     );
     if (scrollController != null) {
       return Scrollbar(
-          controller: scrollController, thumbVisibility: true, child: listView);
+          controller: scrollController,
+          thumbVisibility: false,
+          child: listView);
     }
     return listView;
   }
@@ -459,6 +461,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
   Widget _buildSelectableTile({required int row, required int col}) {
     return _SelectableTile(
       position: _positionNotifier,
+      focusNode: _focusNode,
       row: row,
       col: col,
       builder: (context, position, isSelected) => widget
@@ -692,12 +695,14 @@ class _Slot {
 class _SelectableTile extends StatefulWidget {
   const _SelectableTile({
     required this.position,
+    required this.focusNode,
     required this.row,
     required this.col,
     required this.builder,
   });
 
   final ValueListenable<({int row, int col})> position;
+  final FocusNode focusNode;
   final int row;
   final int col;
   final Widget Function(
@@ -720,6 +725,7 @@ class _SelectableTileState extends State<_SelectableTile> {
   void initState() {
     super.initState();
     widget.position.addListener(_onPositionChanged);
+    widget.focusNode.addListener(_onFocusChanged);
   }
 
   @override
@@ -728,6 +734,10 @@ class _SelectableTileState extends State<_SelectableTile> {
     if (oldWidget.position != widget.position) {
       oldWidget.position.removeListener(_onPositionChanged);
       widget.position.addListener(_onPositionChanged);
+    }
+    if (oldWidget.focusNode != widget.focusNode) {
+      oldWidget.focusNode.removeListener(_onFocusChanged);
+      widget.focusNode.addListener(_onFocusChanged);
     }
     // 行数/列数等外部数据变化导致的父级重建，这里同步一次即可
     _selected = _computeSelected();
@@ -739,9 +749,14 @@ class _SelectableTileState extends State<_SelectableTile> {
     setState(() => _selected = next);
   }
 
+  void _onFocusChanged() {
+    if (_selected) setState(() {});
+  }
+
   @override
   void dispose() {
     widget.position.removeListener(_onPositionChanged);
+    widget.focusNode.removeListener(_onFocusChanged);
     super.dispose();
   }
 

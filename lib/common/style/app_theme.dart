@@ -50,11 +50,12 @@ class AppTheme {
   static const unselectedTileFill =
       Color(0x1FFFFFFF); // Colors.white.withOpacity(0.12)
 
-  /// 电视两级频道菜单的底色与未选中条目色：深色、低透光，但保留视频氛围。
-  static const categoryMenuSurface = Color(0xE60D2B3B);
-  static const channelMenuSurface = Color(0xE61E2540);
-  static const categoryMenuTileFill = Color(0xF0154A65);
-  static const channelMenuTileFill = Color(0xF0383266);
+  /// 电视两级频道菜单用中性半透明底色，只有轻微明度差异，不遮住视频画面。
+  static const iptvMenuFocus = Color(0xFF757575);
+  static const categoryMenuSurface = Color(0x18000000);
+  static const channelMenuSurface = Color(0x22000000);
+  static const categoryMenuTileFill = Color(0x2BFFFFFF);
+  static const channelMenuTileFill = Color(0x33FFFFFF);
 
   /// 列表块填充色：选中为前景色实心，未选中为半透明白
   static Color tileFill(BuildContext context, bool selected) =>

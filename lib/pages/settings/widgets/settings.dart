@@ -7,6 +7,7 @@ import 'package:mobx/mobx.dart';
 import 'package:video_player_example/common/index.dart';
 
 import '../../../common/widgets/two_dimension_list_view.dart';
+import 'settings_about_dialog.dart';
 import 'qr_import_page.dart';
 
 class SettingItem {
@@ -132,6 +133,13 @@ class _SettingsMainState extends State<SettingsMain> {
     } finally {
       await HttpServerUtil.close();
     }
+  }
+
+  void _showAboutDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => const SettingsAboutDialog(),
+    );
   }
 
   @override
@@ -267,6 +275,12 @@ class _SettingsMainState extends State<SettingsMain> {
             });
           }
         },
+      ),
+      SettingItem(
+        title: '关于',
+        value: () => 'TGTV',
+        description: () => '查看版本、GitHub 项目主页与许可证信息',
+        onTap: _showAboutDialog,
       ),
     ];
   }

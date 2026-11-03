@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player_example/common/index.dart';
+import 'package:video_player_example/common/widgets/easy_keyboard_listener.dart';
 import 'package:video_player_example/pages/panel/view.dart';
 import 'package:video_player_example/pages/panel/widgets/iptv_list.dart';
+import 'package:video_player_example/pages/settings/view.dart';
 
 Iptv _channel({
   required int idx,
@@ -23,7 +26,7 @@ Iptv _channel({
       tvgName: name,
     );
 
-Widget _app({bool usePanelPage = false}) {
+Widget _app({bool usePanelPage = false, bool useSettingsPage = false}) {
   return ScreenUtilInit(
     designSize: const Size(1920, 1080),
     minTextAdapt: true,
@@ -35,18 +38,20 @@ Widget _app({bool usePanelPage = false}) {
             child: TextButton(
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => usePanelPage
-                      ? const PanelPage()
-                      : Scaffold(
-                          body: Align(
-                            alignment: Alignment.topLeft,
-                            child: SizedBox(
-                              width: 480,
-                              height: 820,
-                              child: const PanelIptvList(),
-                            ),
-                          ),
+                  builder: (_) {
+                    if (useSettingsPage) return const SettingsPage();
+                    if (usePanelPage) return const PanelPage();
+                    return Scaffold(
+                      body: Align(
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: 480,
+                          height: 820,
+                          child: const PanelIptvList(),
                         ),
+                      ),
+                    );
+                  },
                 ));
               },
               child: const Text('打开菜单'),
@@ -71,6 +76,18 @@ BoxDecoration _tileDecoration(WidgetTester tester, String label) {
         .first,
   );
   return tile.decoration! as BoxDecoration;
+}
+
+bool _listHasFocus(WidgetTester tester, String label) {
+  final listener = tester.widget<EasyKeyboardListener>(
+    find
+        .ancestor(
+          of: find.text(label),
+          matching: find.byType(EasyKeyboardListener),
+        )
+        .first,
+  );
+  return listener.focusNode.hasFocus;
 }
 
 void main() {
@@ -148,25 +165,50 @@ void main() {
     await tester.pumpAndSettle();
 
     var decoration = _tileDecoration(tester, '新闻组');
-    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
     expect(decoration.boxShadow, isNotEmpty);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
 
     decoration = _tileDecoration(tester, '新闻频道一');
-    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
     expect(decoration.boxShadow, isNotEmpty);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
 
     decoration = _tileDecoration(tester, '新闻频道二');
-    expect((decoration.border! as Border).top.color, AppTheme.dialogFocus);
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
     expect(decoration.boxShadow, isNotEmpty);
   });
 
-  testWidgets('一级和二级菜单使用更深且不同的低透明度配色', (tester) async {
+  testWidgets('一级和二级菜单焦点往返后仍能恢复到频道', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(_listHasFocus(tester, '新闻频道一'), isTrue);
+    var decoration = _tileDecoration(tester, '新闻频道一');
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(_listHasFocus(tester, '新闻组'), isTrue);
+    decoration = _tileDecoration(tester, '新闻组');
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(_listHasFocus(tester, '新闻频道一'), isTrue);
+    decoration = _tileDecoration(tester, '新闻频道一');
+    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+  });
+
+  testWidgets('一级和二级菜单使用接近的中性半透明配色且频道框为直角', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
     await tester.tap(find.text('打开菜单'));
@@ -191,9 +233,14 @@ void main() {
     final channelDecoration = _tileDecoration(tester, '新闻频道二');
     expect(categoryDecoration.color, AppTheme.categoryMenuTileFill);
     expect(channelDecoration.color, AppTheme.channelMenuTileFill);
-    expect(categoryDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
-    expect(channelDecoration.color!.alpha, greaterThanOrEqualTo(0xF0));
+    expect(categoryDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
+    expect(channelDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
     expect(categoryDecoration.color, isNot(channelDecoration.color));
+    expect(
+      (channelDecoration.color!.alpha - categoryDecoration.color!.alpha).abs(),
+      lessThanOrEqualTo(0x10),
+    );
+    expect(channelDecoration.borderRadius, BorderRadius.zero);
   });
 
   testWidgets('遥控器左右键可切换到频道栏并选台', (tester) async {
@@ -251,6 +298,85 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
     expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+  });
+
+  testWidgets('设置页十秒无输入后返回，遥控按键会重置计时', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app(useSettingsPage: true));
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+    expect(find.text('TGTV'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 9));
+    expect(find.text('TGTV'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('打开菜单'), findsOneWidget);
+  });
+
+  testWidgets('设置子弹窗和文本编辑期间不会被闲置计时器关闭', (tester) async {
+    setScreen(tester);
+    await tester.pumpWidget(_app(useSettingsPage: true));
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+    expect(find.text('自定义直播源'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 11));
+    expect(find.text('自定义直播源'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 11));
+    expect(find.text('自定义直播源'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('订阅链接'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 9));
+    expect(find.text('订阅链接'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('打开菜单'), findsOneWidget);
+  });
+
+  testWidgets('关于是设置最后一项，点击可查看版本与许可证', (tester) async {
+    setScreen(tester);
+    PackageInfo.setMockInitialValues(
+      appName: 'TGTV',
+      packageName: 'com.example.tgtv',
+      version: '1.5.1',
+      buildNumber: '616',
+      buildSignature: '',
+    );
+    await tester.pumpWidget(_app(useSettingsPage: true));
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+
+    for (var i = 0; i < 5; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('关于'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    await tester.pumpAndSettle();
+
+    expect(find.text('关于 TGTV'), findsOneWidget);
+    expect(find.text('版本：1.5.1'), findsOneWidget);
+    expect(find.textContaining('Apache License 2.0'), findsOneWidget);
   });
 
   testWidgets('频道面板顶部不显示节目状态或分辨率', (tester) async {
