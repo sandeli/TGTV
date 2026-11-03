@@ -251,6 +251,13 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     final iptvChangeDisposer = reaction((_) {
       return iptvStore.currentIptv;
     }, (iptv) async {
+      if (iptv.url.isEmpty) {
+        iptvStore.iptvInfoVisible = false;
+        _debounce.cancel();
+        _infoHideTimer?.cancel();
+        await playerStore.stopPlayback();
+        return;
+      }
       iptvStore.iptvInfoVisible = true;
       _triedSources.clear();
       _switchAttempts = 0;
@@ -276,12 +283,18 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     final listChangeDisposer = reaction((_) => iptvStore.iptvList, (list) {
       iptvStore.refreshEpgList();
 
-      // 补起播：以前只有 _initData 末尾会挑一次首频道，
-      // 首次拉源失败后即使按 OK 重试成功，也不会自动播放，界面停在失败提示上。
-      if (list.isNotEmpty && iptvStore.currentIptv.url.isEmpty) {
-        iptvStore.currentIptv =
-            list.elementAtOrNull(IptvSettings.initialIptvIdx) ?? list.first;
+      if (list.isEmpty) {
+        if (iptvStore.currentIptv.url.isNotEmpty) {
+          iptvStore.currentIptv = Iptv.empty;
+        }
+        return;
       }
+
+      final current = iptvStore.currentIptv;
+      final replacement = list.firstWhereOrNull((item) =>
+          item.name == current.name && item.tvgName == current.tvgName);
+      iptvStore.currentIptv = replacement ??
+          list.elementAtOrNull(IptvSettings.initialIptvIdx) ?? list.first;
     });
     // 存储清理函数
     _disposers.add(listChangeDisposer);
@@ -301,8 +314,8 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     }
     _logger.debug('首频道设置完成');
 
+    // 启动时不访问远程更新服务；用户打开「关于」页时再检查 fork 发布信息。
     updateStore.loadCurrentVersion();
-    updateStore.refreshLatestRelease();
   }
 
   @override
@@ -520,6 +533,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
         if (status == IptvListStatus.ready) return const SizedBox.shrink();
 
         final failed = status == IptvListStatus.failed;
+        final empty = status == IptvListStatus.empty;
 
         return Positioned.fill(
           child: Container(
@@ -528,20 +542,35 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  failed
-                      ? const Icon(Icons.error_outline,
-                          color: Colors.orange, size: 56)
-                      : CircularProgressIndicator(
-                          color: AppTheme.fgFaded(context, AppTheme.oSecondary)),
+                  if (failed)
+                    const Icon(Icons.error_outline,
+                        color: Colors.orange, size: 56)
+                  else if (empty)
+                    Icon(Icons.playlist_add,
+                        color: AppTheme.fgFaded(context, AppTheme.oSecondary), size: 56)
+                  else
+                    CircularProgressIndicator(
+                        color: AppTheme.fgFaded(context, AppTheme.oSecondary)),
                   SizedBox(height: 20.h),
                   Text(
-                    failed ? '直播源获取失败' : '正在获取直播源…',
+                    empty ? '尚未导入直播源' : failed ? '播放列表获取失败' : '正在获取播放列表…',
                     style: AppTheme.text(AppTheme.fg(context), 28.sp),
                   ),
-                  if (failed) ...[
+                  if (empty) ...[
+                    SizedBox(height: 12.h),
+                    SizedBox(
+                      width: 1100.w,
+                      child: Text(
+                        '按菜单 / 设置键 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
+                        textAlign: TextAlign.center,
+                        style: AppTheme.text(
+                            AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),
+                      ),
+                    ),
+                  ] else if (failed) ...[
                     SizedBox(height: 10.h),
                     Text(
-                      '请检查网络后，按 OK 键重试',
+                      '检查订阅链接与网络后，按 OK 键重试',
                       style: AppTheme.text(
                           AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),
                     ),

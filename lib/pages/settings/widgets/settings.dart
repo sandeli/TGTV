@@ -44,31 +44,6 @@ class _SettingsMainState extends State<SettingsMain> {
 
   late final List<SettingItem> _settingItemList;
 
-  String _formatDuration(int ms) {
-    if (ms < 60000) {
-      return '${ms ~/ 1000}秒';
-    } else if (ms < 3600000) {
-      return '${ms ~/ 60000}分钟';
-    } else {
-      return '${ms ~/ 3600000}小时';
-    }
-  }
-
-  void _showAssignUserDialog() {
-    _showTvTextEditDialog(
-      title: '用户参数',
-      hint: '输入参数',
-      initialValue: PrefsUtil.getString('assign_user') ?? '',
-      maxWidth: 500,
-      fontSize: 16,
-      onSave: (value) {
-        PrefsUtil.setString('assign_user', value);
-        IptvSettings.iptvSourceCacheTime = 0;
-        iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
-      },
-    );
-  }
-
   /// 电视端文本编辑弹窗
   ///
   /// Flutter 的按键分发顺序是「叶子节点 → 根」(focus_manager.dart:1995)，
@@ -114,7 +89,7 @@ class _SettingsMainState extends State<SettingsMain> {
 
     final initialSelected = Set<String>.from(IptvSettings.allowedChannels.isNotEmpty
         ? IptvSettings.allowedChannels
-        : allChannels.where((n) => n.toLowerCase().startsWith('cctv') || n.endsWith('卫视')));
+        : allChannels);
 
     final result = await ChannelSelectDialog.show(
       context,
@@ -133,7 +108,7 @@ class _SettingsMainState extends State<SettingsMain> {
   void _showCustomSourceDialog() {
     _showTvTextEditDialog(
       title: '自定义直播源',
-      subtitle: '支持 m3u 订阅链接与 TVBox 链接，也可用手机扫码后在网页填写',
+      subtitle: '支持 M3U、TXT（#genre#）和 XSPF；可用手机扫码导入链接',
       hint: '输入订阅链接',
       initialValue: IptvSettings.customIptvSource,
       maxWidth: 700,
@@ -144,36 +119,20 @@ class _SettingsMainState extends State<SettingsMain> {
       onSave: (value) {
         IptvSettings.customIptvSource = value.trim();
         IptvSettings.iptvSourceSimplify = false;
-        IptvSettings.iptvSourceCacheTime = 0;
         IptvSettings.epgCacheHash = 0;
         iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
       },
     );
   }
 
-  /// 默认源服务地址
-  ///
-  /// 壳源分离的关键入口：把写死的服务端地址变成可配置项。
-  /// 留空 = 停用内置源，App 退化为纯播放器，只加载用户自己的订阅。
-  void _showDefaultApiDialog() {
-    _showTvTextEditDialog(
-      title: '默认源服务',
-      subtitle: '留空表示停用内置源，届时只加载「自定义直播源」里填写的订阅',
-      hint: '输入接口地址',
-      initialValue: IptvSettings.defaultIptvSourceApi,
-      maxWidth: 700,
-      fontSize: 20,
-      onSave: (value) {
-        IptvSettings.defaultIptvSourceApi = value.trim();
-        IptvSettings.epgCacheHash = 0;
-        iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
-      },
-    );
-  }
-
-  void _showServerQrcode() {
+  Future<void> _showServerQrcode() async {
+    await HttpServerUtil.init();
+    if (!mounted) {
+      await HttpServerUtil.close();
+      return;
+    }
     final fg = AppTheme.fg(context);
-    NavigatorUtil.push(
+    await NavigatorUtil.push(
       context,
       TvModalScaffold(
         child: Center(
@@ -181,13 +140,19 @@ class _SettingsMainState extends State<SettingsMain> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '扫描二维码设置',
+                '扫码导入订阅链接',
                 style: AppTheme.text(fg, 36.sp),
               ),
               SizedBox(height: 12.h),
               Text(
                 HttpServerUtil.serverUrl,
                 style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 24.sp),
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                '手机与电视连接同一 Wi-Fi；网页输入框为空，手动粘贴 M3U / TXT / XSPF 链接。\n订阅及设置仅保存在电视本机；此页无配对码，仅在二维码页打开时临时提供播放列表导入。请使用可信 Wi-Fi。',
+                textAlign: TextAlign.center,
+                style: AppTheme.text(AppTheme.fgFaded(context, 0.7), 20.sp),
               ),
               SizedBox(height: 24.h),
               Container(
@@ -219,6 +184,7 @@ class _SettingsMainState extends State<SettingsMain> {
         ),
       ),
     );
+    await HttpServerUtil.close();
   }
 
   /// 社区与反馈：展示 QQ 群二维码
@@ -290,9 +256,6 @@ class _SettingsMainState extends State<SettingsMain> {
   void initState() {
     super.initState();
     refreshSettingGroupList();
-
-    // 同样要判 mounted：init 是异步的，用户可能在服务起来前就退出了设置页
-    HttpServerUtil.init().then((_) { if (mounted) setState(() {}); });
   }
 
   @override
@@ -365,15 +328,6 @@ class _SettingsMainState extends State<SettingsMain> {
     final groupList = [
       SettingGroup(name: '应用', items: [
         SettingItem(
-          title: '用户参数',
-          value: () {
-            final v = PrefsUtil.getString('assign_user') ?? '';
-            return v.length > 8 ? '${v.substring(0, 8)}...' : v;
-          },
-          description: () => '点击编辑',
-          onTap: () => _showAssignUserDialog(),
-        ),
-        SettingItem(
           title: '开机自启',
           value: () => AppSettings.bootLaunch ? '启用' : '禁用',
           description: () => '下次重启生效',
@@ -399,23 +353,6 @@ class _SettingsMainState extends State<SettingsMain> {
       ]),
       SettingGroup(name: '直播源', items: [
         SettingItem(
-          title: '默认源服务',
-          value: () {
-            final api = IptvSettings.defaultIptvSourceApi;
-            if (api.isEmpty) return '已停用';
-            return api.length > 28 ? '${api.substring(0, 28)}...' : api;
-          },
-          description: () => IptvSettings.defaultIptvSourceApi.isEmpty
-              ? '当前只加载自定义源；点击重新配置，长按恢复默认'
-              : '点击编辑接口地址（清空即停用内置源）',
-          onTap: () => _showDefaultApiDialog(),
-          onLongTap: () {
-            IptvSettings.defaultIptvSourceApi = Constants.defaultIptvSourceApi;
-            IptvSettings.epgCacheHash = 0;
-            iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
-          },
-        ),
-        SettingItem(
           title: '直播源精简',
           value: () {
             if (!IptvSettings.iptvSourceSimplify) return '禁用';
@@ -426,7 +363,7 @@ class _SettingsMainState extends State<SettingsMain> {
             if (!IptvSettings.iptvSourceSimplify) return '显示完整直播源';
             final count = IptvSettings.allowedChannels.length;
             if (count > 0) return '仅显示已选频道，点击自定义';
-            return '显示精简直播源(仅央视、地方卫视)';
+            return '未选择频道时显示全部';
           },
           onTap: () {
             if (IptvSettings.iptvSourceSimplify) {
@@ -445,30 +382,17 @@ class _SettingsMainState extends State<SettingsMain> {
           },
         ),
         SettingItem(
-          title: '自定义直播源',
-          value: () => IptvSettings.customIptvSource.isNotEmpty ? '已启用' : '未启用',
+          title: '订阅链接',
+          value: () => IptvSettings.customIptvSource.isNotEmpty ? '已导入' : '未导入',
           description: () {
-            if (IptvSettings.customIptvSource.isEmpty) return '点击设置订阅链接';
-            final src = IptvSettings.customIptvSource;
-            return src.length > 35 ? '${src.substring(0, 35)}...' : src;
+            if (IptvSettings.customIptvSource.isEmpty) return '点击输入或扫码导入；长按清空';
+            return '链接已保存；长按清空';
           },
           onTap: () => _showCustomSourceDialog(),
           onLongTap: () {
             IptvSettings.customIptvSource = '';
-            IptvSettings.iptvSourceCacheTime = 0;
             IptvSettings.epgCacheHash = 0;
             iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
-          },
-        ),
-        SettingItem(
-          title: '直播源缓存',
-          value: () => _formatDuration(IptvSettings.iptvSourceCacheKeepTime),
-          description: () => IptvSettings.iptvSourceCacheTime > 0 ? "已缓存(点击清除缓存)" : "未缓存",
-          onTap: () {
-            if (IptvSettings.iptvSourceCacheTime > 0) {
-              IptvSettings.iptvSourceCacheTime = 0;
-              iptvStore.refreshIptvList().then((_) { if (mounted) setState(() {}); });
-            }
           },
         ),
       ]),
@@ -479,18 +403,6 @@ class _SettingsMainState extends State<SettingsMain> {
           description: () => '首次加载时可能会有跳帧风险',
           onTap: () {
             IptvSettings.epgEnable = !IptvSettings.epgEnable;
-            iptvStore.refreshEpgList().then((_) { if (mounted) setState(() {}); });
-          },
-        ),
-        SettingItem(
-          title: '自定义节目单',
-          value: () => IptvSettings.customEpgXml.isNotEmpty ? '已启用' : '未启用',
-          description: () => IptvSettings.customEpgXml.isNotEmpty ? '长按恢复默认' : '点击查看网址二维码',
-          onTap: () => _showServerQrcode(),
-          onLongTap: () {
-            IptvSettings.customEpgXml = '';
-            IptvSettings.epgXmlCacheTime = 0;
-            IptvSettings.epgCacheHash = 0;
             iptvStore.refreshEpgList().then((_) { if (mounted) setState(() {}); });
           },
         ),
@@ -538,17 +450,9 @@ class _SettingsMainState extends State<SettingsMain> {
           onTap: () {
             _showProbeResult(
               'GitHub Discussions',
-              'github.com/HTWMedia/HTV → Discussions\n发帖时请带上：频道名 + 现象 + 地区/网络 + App 版本',
+              'github.com/sandeli/HTV → Discussions\n发帖时请带上：频道名 + 现象 + 地区/网络 + App 版本',
             );
           },
-        ),
-      ]),
-      SettingGroup(name: '更多', items: [
-        SettingItem(
-          title: '更多设置',
-          value: () => '',
-          description: () => '访问以下网址进行配置：${HttpServerUtil.serverUrl}',
-          onTap: () => _showServerQrcode(),
         ),
       ]),
     ];

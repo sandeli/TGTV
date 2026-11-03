@@ -87,16 +87,8 @@ abstract class UpdateStoreBase with Store {
 
       GithubRelease? release;
 
-      // 优先通过代理请求 GitHub API
-      final proxyUrl = '${Constants.githubProxy}${Constants.githubReleaseApi}';
-      final proxied = await _fetchRelease(proxyUrl);
-      if (proxied != null) release = proxied;
-
-      // 代理失败，直接请求 GitHub API
-      if (release == null) {
-        final direct = await _fetchRelease(Constants.githubReleaseApi);
-        if (direct != null) release = direct;
-      }
+      // 只在用户查看版本信息时直连其 fork 的 GitHub Releases API。
+      release = await _fetchRelease(Constants.githubReleaseApi);
 
       if (release == null) {
         _logger.debug('检查更新失败: 无法获取 release 信息');
@@ -146,26 +138,9 @@ abstract class UpdateStoreBase with Store {
       final dir = await getTemporaryDirectory();
       final savePath = '${dir.path}/htv-${latestRelease.tagName}.apk';
 
-      // 通过代理加速下载
-      var downloadUrl = '${Constants.githubProxy}${latestRelease.downloadUrl}';
-
-      final path = await RequestUtil.download(
-        url: downloadUrl,
-        savePath: savePath,
-        onProgress: (progress) {
-          final percent = (progress * 100).toInt();
-          downloadProgress = '下载中 $percent%';
-          _logger.debug('下载进度: $percent%');
-        },
-      );
-
-      if (path == null) {
-        // 代理失败，直连下载
-        downloadUrl = latestRelease.downloadUrl;
-      }
-
-      final finalPath = path ?? await RequestUtil.download(
-        url: downloadUrl,
+      // 更新文件直接从用户 fork 的 GitHub Release 下载，不经过第三方代理。
+      final finalPath = await RequestUtil.download(
+        url: latestRelease.downloadUrl,
         savePath: savePath,
         onProgress: (progress) {
           final percent = (progress * 100).toInt();

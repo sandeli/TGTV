@@ -33,6 +33,14 @@ void main() async {
   // 初始化
   await PrefsUtil.init();
   LoggerUtil.init();
+  // 迁移为纯播放器壳：清除旧版默认源服务配置、匿名用户标识与地区缓存，
+  // 将用户订阅和节目单缓存保存在本机应用目录，并删除旧内置频道列表缓存。
+  await PrefsUtil.remove('IptvSetting.defaultIptvSourceApi');
+  await PrefsUtil.remove('IptvSetting.iptvSourceCacheTime');
+  await PrefsUtil.remove('assign_user');
+  await PrefsUtil.remove('cached_location');
+  await IptvUtil.migrateLegacyCacheFiles();
+  await EpgUtil.migrateLegacyCacheFiles();
   RequestUtil.init();
   // 源健康度记录（哪些源播过失败）。未载入时退化为"所有源一样优先"，
   // 不阻塞启动，所以放在这里而不是更早。

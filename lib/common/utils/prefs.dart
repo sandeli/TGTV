@@ -25,4 +25,5 @@ class PrefsUtil {
 
   static List<String>? getStringList(String key) => _instance.getStringList(key);
   static Future<bool> setStringList(String key, List<String> value) => _instance.setStringList(key, value);
+  static Future<bool> remove(String key) => _instance.remove(key);
 }

@@ -12,6 +12,24 @@ final _logger = LoggerUtil.create(['epg']);
 class EpgUtil {
   EpgUtil._();
 
+  /// 将升级前的临时 EPG 缓存迁移到应用私有持久目录。
+  static Future<void> migrateLegacyCacheFiles() async {
+    try {
+      final temporaryDirectory = await getTemporaryDirectory();
+      final cacheDirectory = await getApplicationSupportDirectory();
+      await cacheDirectory.create(recursive: true);
+      for (final name in ['epg.xml', 'epg.json']) {
+        final oldFile = File('${temporaryDirectory.path}/$name');
+        final cacheFile = File('${cacheDirectory.path}/$name');
+        if (!await oldFile.exists()) continue;
+        if (!await cacheFile.exists()) await oldFile.copy(cacheFile.path);
+        await oldFile.delete();
+      }
+    } catch (e, st) {
+      _logger.handle(e, st);
+    }
+  }
+
   /// 获取远程epg xml
   static Future<String> _fetchXml() async {
     _logger.debug('获取远程xml: ${Constants.iptvEpgXml}');
@@ -21,7 +39,9 @@ class EpgUtil {
 
   /// 获取缓存epg xml文件
   static Future<File> _getCacheXmlFile() async {
-    return File('${(await getTemporaryDirectory()).path}/epg.xml');
+    final directory = await getApplicationSupportDirectory();
+    await directory.create(recursive: true);
+    return File('${directory.path}/epg.xml');
   }
 
   /// 获取缓存epg xml
@@ -102,7 +122,9 @@ class EpgUtil {
 
   /// 获取缓存文件
   static Future<File> _getCacheFile() async {
-    return File('${(await getTemporaryDirectory()).path}/epg.json');
+    final directory = await getApplicationSupportDirectory();
+    await directory.create(recursive: true);
+    return File('${directory.path}/epg.json');
   }
 
   /// 获取缓存epg

@@ -11,20 +11,11 @@ enum IptvSetting {
   /// 直播源精简
   iptvSourceSimplify,
 
-  /// 直播源缓存时间
-  iptvSourceCacheTime,
-
   /// 直播源缓存保持时间
   iptvSourceCacheKeepTime,
 
   /// 自定义直播源
   customIptvSource,
-
-  /// 默认（内置）源服务地址
-  ///
-  /// 未设置时取 [Constants.defaultIptvSourceApi]；主动置空字符串表示禁用内置源，
-  /// 此时只加载自定义源——这是壳源分离留给第三方接入者的口子。
-  defaultIptvSourceApi,
 
   /// 自定义直播源缓存时间
   customIptvSourceCacheTime,
@@ -73,9 +64,6 @@ class IptvSettings {
   static bool get iptvSourceSimplify => PrefsUtil.getBool(IptvSetting.iptvSourceSimplify.toString()) ?? false;
   static set iptvSourceSimplify(bool value) => PrefsUtil.setBool(IptvSetting.iptvSourceSimplify.toString(), value);
 
-  static int get iptvSourceCacheTime => PrefsUtil.getInt(IptvSetting.iptvSourceCacheTime.toString()) ?? 0;
-  static set iptvSourceCacheTime(int value) => PrefsUtil.setInt(IptvSetting.iptvSourceCacheTime.toString(), value);
-
   static int get iptvSourceCacheKeepTime =>
       PrefsUtil.getInt(IptvSetting.iptvSourceCacheKeepTime.toString()) ?? Constants.iptvSourceCacheKeepTime;
   static set iptvSourceCacheKeepTime(int value) =>
@@ -87,18 +75,6 @@ class IptvSettings {
     // 自定义源变更即失效其缓存，下次刷新重新抓取
     PrefsUtil.setInt(IptvSetting.customIptvSourceCacheTime.toString(), 0);
     PrefsUtil.setString(IptvSetting.customIptvSourceCacheUrl.toString(), '');
-  }
-
-  /// 默认（内置）源服务地址
-  ///
-  /// 空串 = 已禁用内置源。注意 api 变更后必须清缓存时间戳，
-  /// 否则会拿旧地址的缓存继续用。
-  static String get defaultIptvSourceApi =>
-      PrefsUtil.getString(IptvSetting.defaultIptvSourceApi.toString()) ??
-      Constants.defaultIptvSourceApi;
-  static set defaultIptvSourceApi(String value) {
-    PrefsUtil.setString(IptvSetting.defaultIptvSourceApi.toString(), value);
-    PrefsUtil.setInt(IptvSetting.iptvSourceCacheTime.toString(), 0);
   }
 
   static int get customIptvSourceCacheTime =>

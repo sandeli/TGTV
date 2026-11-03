@@ -122,7 +122,7 @@ class _SettingsAppInfoState extends State<SettingsAppInfo> {
           ),
         ),
         Text(
-          'https://github.com/HTWMedia/HTV',
+          'https://github.com/sandeli/HTV',
           style: AppTheme.text(AppTheme.fgFaded(context, AppTheme.oSecondary), 30.sp),
         ),
       ],

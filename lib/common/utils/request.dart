@@ -41,10 +41,11 @@ class RequestUtil {
       if (response.statusCode == 200) {
         return utf8.decode(response.bodyBytes);
       }
-      _logger.warning('请求失败 HTTP ${response.statusCode}: $url');
+      _logger.warning('请求失败 HTTP ${response.statusCode}');
     }
-    catch(ex){
-      _logger.debug('请求异常 $url: $ex');
+    catch(_){
+      // 不记录原始 URL 或异常详情：用户订阅链接可能带有账号/访问令牌。
+      _logger.debug('请求异常');
     }
     finally {
       // Future.timeout 只是让这个 Future 提前以异常收场，底层 socket 并不会跟着关。

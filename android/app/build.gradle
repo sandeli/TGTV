@@ -58,7 +58,8 @@ android {
 
     defaultConfig {
         applicationId "com.htwmedia.htv"
-        minSdkVersion flutter.minSdkVersion
+        // 保持 Android 4.4 (API 19) 兼容；使用 Flutter 3.22 前的引擎构建。
+        minSdkVersion 19
         targetSdkVersion 29
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

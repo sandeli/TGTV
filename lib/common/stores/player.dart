@@ -307,7 +307,7 @@ abstract class PlayerStoreBase with Store {
     currentUrl = playback ? '' : url;
 
     try {
-      _logger.debug(playback ? '播放回看: $url' : '播放直播源: $iptv');
+      _logger.debug(playback ? '播放回看' : '播放直播源: ${iptv.name}');
       _freezeTimer?.cancel();
       // 上一次的缓冲观察窗作废：新源起播本来就要缓冲，不该被旧账判死
       _cancelFreezeGrace();
@@ -628,6 +628,27 @@ abstract class PlayerStoreBase with Store {
     _cancelStall();
     // 还在起播缓冲中就继续盯下一轮
     if (!_rendered && player.isBuffering) _armStallTimer();
+  }
+
+  /// 停止当前播放但保留原生播放器实例，供空订阅状态使用。
+  @action
+  Future<void> stopPlayback() async {
+    _playSeq++;
+    _freezeTimer?.cancel();
+    _freezeTimer = null;
+    _cancelWatchdog();
+    _cancelFreezeGrace();
+    _cancelStall();
+    currentUrl = '';
+    isPlayback = false;
+    isSwitching = false;
+    state = PlayerState.waiting;
+    if (_disposed || player.state == FijkState.idle) return;
+    try {
+      await player.stop();
+    } catch (e, st) {
+      _logger.handle(e, st);
+    }
   }
 
   /// 释放播放器（统一入口）

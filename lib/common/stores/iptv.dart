@@ -18,6 +18,9 @@ enum IptvListStatus {
   /// 已有可用列表
   ready,
 
+  /// 尚未导入订阅（这是空壳的正常初始状态）
+  empty,
+
   /// 拉取失败（列表为空）
   failed,
 }
@@ -107,6 +110,7 @@ abstract class IptvStoreBase with Store {
   /// 用 [Observable] 而非 `@observable`，这样不必重新生成 .g.dart。
   final Observable<IptvListStatus> listStatus =
       Observable(IptvListStatus.loading);
+  int _sourceRefreshGeneration = 0;
 
   /// 切换收藏，返回切换后是否为收藏状态
   Future<bool> toggleFavorite(Iptv iptv) async {
@@ -169,33 +173,47 @@ abstract class IptvStoreBase with Store {
   /// 刷新直播源列表（优先缓存，过期时后台静默更新）
   @action
   Future<void> refreshIptvList() async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final builtinExpired = now - IptvSettings.iptvSourceCacheTime >= IptvSettings.iptvSourceCacheKeepTime;
-    final customStale = IptvSettings.customIptvSource.isNotEmpty && IptvUtil.isCustomSourceCacheStale();
-    final expired = builtinExpired || customStale;
+    final generation = ++_sourceRefreshGeneration;
+    if (IptvSettings.customIptvSource.isEmpty) {
+      iptvGroupList = [];
+      listStatus.value = IptvListStatus.empty;
+      return;
+    }
 
-    // 1. 有缓存时秒展示（即使已过期）
+    final customStale = IptvUtil.isCustomSourceCacheStale();
+
+    // 有用户订阅缓存时先展示；旧版内置源缓存由 IptvUtil 永不读取。
     final cached = await IptvUtil.getCachedGroups();
+    if (generation != _sourceRefreshGeneration) return;
     if (cached != null) {
       listStatus.value =
           cached.isEmpty ? IptvListStatus.failed : IptvListStatus.ready;
       iptvGroupList = cached;
-      if (!expired) return; // 缓存有效，完成
-      _refreshFromNetwork(); // 后台静默刷新
+      if (!customStale) return;
+      _refreshFromNetwork(generation); // 后台静默刷新
       return;
     }
 
-    // 2. 从未缓存过，等网络
+    // 没有缓存时等待用户所填 URL 的请求结果。
     listStatus.value = IptvListStatus.loading;
     final fresh = await IptvUtil.refreshAndGet();
+    if (generation != _sourceRefreshGeneration) return;
     listStatus.value =
         fresh.isEmpty ? IptvListStatus.failed : IptvListStatus.ready;
     iptvGroupList = fresh;
   }
 
-  Future<void> _refreshFromNetwork() async {
+  Future<void> _refreshFromNetwork(int generation) async {
     try {
       final fresh = await IptvUtil.refreshAndGet();
+      if (generation != _sourceRefreshGeneration) return;
+      if (IptvSettings.customIptvSource.isEmpty) {
+        runInAction(() {
+          iptvGroupList = [];
+          listStatus.value = IptvListStatus.empty;
+        });
+        return;
+      }
       if (fresh.isEmpty) {
         // 后台刷新拉不到东西（网络抖动、服务端异常）时保留现有列表：
         // 原来这里无脑覆盖，一次后台失败就把用户正在看的频道池清空，
@@ -213,6 +231,9 @@ abstract class IptvStoreBase with Store {
   @action
   Future<void> refreshEpgList() async {
     final channels = iptvList.map((e) => e.tvgName).toList();
+    epgList = [];
+    _epgMap = {};
+    if (channels.isEmpty) return;
 
     // Phase 1: 立即从缓存获取
     final cached = await EpgUtil.getCachedOnly(channels);
