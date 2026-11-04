@@ -201,29 +201,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('当前焦点在一级分类和二级频道时都有醒目的描边', (tester) async {
+  testWidgets('焦点在两级菜单间移动时白色描边跟随且没有暗色外框', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
     await tester.tap(find.text('打开菜单'));
     await tester.pumpAndSettle();
 
     var decoration = _tileDecoration(tester, '新闻组');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
-    expect(decoration.boxShadow, isNotEmpty);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+    expect(decoration.color, AppTheme.categoryMenuTileFill);
+    expect(decoration.borderRadius, BorderRadius.zero);
+    expect(decoration.boxShadow, isNull);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
 
+    decoration = _tileDecoration(tester, '新闻组');
+    expect((decoration.border! as Border).top.color, Colors.transparent);
+
     decoration = _tileDecoration(tester, '新闻频道一');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
-    expect(decoration.boxShadow, isNotEmpty);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+    expect(decoration.color, AppTheme.channelMenuTileFill);
+    expect(decoration.borderRadius, BorderRadius.zero);
+    expect(decoration.boxShadow, isNull);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
 
+    decoration = _tileDecoration(tester, '新闻频道一');
+    expect((decoration.border! as Border).top.color, Colors.transparent);
+
     decoration = _tileDecoration(tester, '新闻频道二');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
-    expect(decoration.boxShadow, isNotEmpty);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+    expect(decoration.boxShadow, isNull);
   });
 
   testWidgets('一级和二级菜单焦点往返后仍能恢复到频道', (tester) async {
@@ -236,22 +255,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(_listHasFocus(tester, '新闻频道一'), isTrue);
     var decoration = _tileDecoration(tester, '新闻频道一');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
     expect(_listHasFocus(tester, '新闻组'), isTrue);
     decoration = _tileDecoration(tester, '新闻组');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     expect(_listHasFocus(tester, '新闻频道一'), isTrue);
     decoration = _tileDecoration(tester, '新闻频道一');
-    expect((decoration.border! as Border).top.color, AppTheme.iptvMenuFocus);
+    expect(
+      (decoration.border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
   });
 
-  testWidgets('一级和二级菜单使用接近的中性半透明配色且频道框为直角', (tester) async {
+  testWidgets('一级和二级菜单使用中性半透明底色且项目均为直角', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
     await tester.tap(find.text('打开菜单'));
@@ -276,6 +304,8 @@ void main() {
     final channelDecoration = _tileDecoration(tester, '新闻频道二');
     expect(categoryDecoration.color, AppTheme.categoryMenuTileFill);
     expect(channelDecoration.color, AppTheme.channelMenuTileFill);
+    expect(categoryDecoration.borderRadius, BorderRadius.zero);
+    expect(channelDecoration.borderRadius, BorderRadius.zero);
     expect(categoryDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
     expect(channelDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
     expect(categoryDecoration.color, isNot(channelDecoration.color));

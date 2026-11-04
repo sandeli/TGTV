@@ -52,6 +52,9 @@ class AppTheme {
 
   /// 电视两级频道菜单用中性半透明底色，只有轻微明度差异，不遮住视频画面。
   static const iptvMenuFocus = Color(0xFF757575);
+
+  /// 两级菜单的焦点描边，独立于其他页面的原有焦点色。
+  static const iptvMenuFocusOutline = Color(0xFFFFFFFF);
   static const categoryMenuSurface = Color(0x18000000);
   static const channelMenuSurface = Color(0x22000000);
   static const categoryMenuTileFill = Color(0x2BFFFFFF);

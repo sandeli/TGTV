@@ -292,7 +292,6 @@ class _PanelIptvListState extends State<PanelIptvList> {
                                 isSelected,
                                 isFocused: _channelFocusNode.hasFocus,
                                 unselectedFill: AppTheme.channelMenuTileFill,
-                                squareCorners: true,
                               );
                             }
                             return _buildIptvItem(
@@ -337,7 +336,6 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required bool isSelected,
     required bool isFocused,
     required Color unselectedFill,
-    bool squareCorners = false,
     required Widget child,
   }) {
     final showFocus = isSelected && isFocused;
@@ -347,23 +345,12 @@ class _PanelIptvListState extends State<PanelIptvList> {
         vertical: _isCompact ? 4.h : 8.h,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.tileFill(context, true) : unselectedFill,
-        borderRadius: squareCorners
-            ? BorderRadius.zero
-            : BorderRadius.circular(_isCompact ? 8 : 10).r,
+        color: unselectedFill,
+        borderRadius: BorderRadius.zero,
         border: Border.all(
-          color: showFocus ? AppTheme.iptvMenuFocus : Colors.transparent,
+          color: showFocus ? AppTheme.iptvMenuFocusOutline : Colors.transparent,
           width: _isCompact ? 2 : 3,
         ),
-        boxShadow: showFocus
-            ? const [
-                BoxShadow(
-                  color: Color(0xF0000000),
-                  blurRadius: 0,
-                  spreadRadius: 2,
-                ),
-              ]
-            : const [],
       ),
       child: child,
     );
@@ -385,16 +372,15 @@ class _PanelIptvListState extends State<PanelIptvList> {
         children: [
           Text(
             title,
-            style: AppTheme.text(AppTheme.tileText(context, isSelected),
-                _isCompact ? 18.sp : 26.sp),
+            style: AppTheme.text(
+                AppTheme.tileText(context, false), _isCompact ? 18.sp : 26.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           SizedBox(height: _isCompact ? 2.h : 3.h),
           Text(
             subtitle,
-            style: AppTheme.text(
-                AppTheme.tileTextFaded(context, isSelected, 0.7),
+            style: AppTheme.text(AppTheme.tileTextFaded(context, false, 0.7),
                 _isCompact ? 12.sp : 18.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -417,13 +403,13 @@ class _PanelIptvListState extends State<PanelIptvList> {
       child: Row(
         children: [
           Icon(icon,
-              color: AppTheme.tileText(context, isSelected),
+              color: AppTheme.tileText(context, false),
               size: _isCompact ? 18.sp : 24.sp),
           SizedBox(width: _isCompact ? 5.w : 8.w),
           Expanded(
             child: Text(
               label,
-              style: AppTheme.text(AppTheme.tileText(context, isSelected),
+              style: AppTheme.text(AppTheme.tileText(context, false),
                   _isCompact ? 16.sp : 22.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -439,19 +425,16 @@ class _PanelIptvListState extends State<PanelIptvList> {
     bool isSelected, {
     required bool isFocused,
     required Color unselectedFill,
-    bool squareCorners = false,
   }) {
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
       unselectedFill: unselectedFill,
-      squareCorners: squareCorners,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
           message,
-          style: AppTheme.text(
-              AppTheme.tileTextFaded(context, isSelected, 0.75),
+          style: AppTheme.text(AppTheme.tileTextFaded(context, false, 0.75),
               _isCompact ? 15.sp : 22.sp),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -465,12 +448,11 @@ class _PanelIptvListState extends State<PanelIptvList> {
     bool isSelected, {
     required bool isFocused,
   }) {
-    final color = AppTheme.tileText(context, isSelected);
+    final color = AppTheme.tileText(context, false);
     return _buildTile(
       isSelected: isSelected,
       isFocused: isFocused,
       unselectedFill: AppTheme.channelMenuTileFill,
-      squareCorners: true,
       child: Row(
         children: [
           SizedBox(
@@ -478,8 +460,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
             child: Text(
               iptv.channel.toString(),
               textAlign: TextAlign.center,
-              style: AppTheme.text(
-                  AppTheme.tileTextFaded(context, isSelected, 0.75),
+              style: AppTheme.text(AppTheme.tileTextFaded(context, false, 0.75),
                   _isCompact ? 13.sp : 20.sp),
               maxLines: 1,
             ),
@@ -490,8 +471,8 @@ class _PanelIptvListState extends State<PanelIptvList> {
               iptvStore.isFavorite(iptv) ? Icons.star_rounded : Icons.live_tv,
               size: _isCompact ? 17.sp : 23.sp,
               color: iptvStore.isFavorite(iptv)
-                  ? (isSelected ? Colors.amber.shade700 : Colors.amber)
-                  : AppTheme.tileTextFaded(context, isSelected, 0.65),
+                  ? Colors.amber
+                  : AppTheme.tileTextFaded(context, false, 0.65),
             ),
           ),
           SizedBox(width: _isCompact ? 6.w : 10.w),
