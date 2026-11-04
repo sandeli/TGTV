@@ -79,6 +79,9 @@ class _PanelPageState extends State<PanelPage> {
 
   // 右上角保留频道号和时间；不显示当前/稍后节目或分辨率。
   Widget _buildTopRight(BuildContext context) {
+    if (MediaQuery.of(context).size.shortestSide < 600) {
+      return const SizedBox.shrink();
+    }
     final onBackground = AppTheme.fg(context);
     return Positioned(
       top: 20.h,
@@ -106,9 +109,25 @@ class _PanelPageState extends State<PanelPage> {
   }
 
   Widget _buildPanelContent() {
+    final isCompact = MediaQuery.of(context).size.shortestSide < 600;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (isCompact)
+          SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 52.h,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: '关闭频道面板',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ),
+          ),
         Expanded(child: const PanelIptvList()),
       ].delayed(enable: DebugSettings.delayRender),
     );
@@ -116,9 +135,12 @@ class _PanelPageState extends State<PanelPage> {
 
   Positioned _buildBottom() {
     final screen = MediaQuery.of(context).size;
-    final panelWidth = (screen.width * 0.44).clamp(680.0, 1100.0).toDouble();
+    final isCompact = screen.shortestSide < 600;
+    final panelWidth = isCompact
+        ? screen.width
+        : (screen.width * 0.44).clamp(680.0, 1100.0).toDouble();
     final panel = Container(
-      padding: EdgeInsets.only(left: 40).r,
+      padding: EdgeInsets.only(left: isCompact ? 0 : 40).r,
       child: _buildPanelContent(),
     );
 

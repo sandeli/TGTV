@@ -335,4 +335,108 @@ void main() {
 
     expect(selected, '0-1');
   });
+
+  testWidgets('触屏点按会更新选中项并调用选择回调', (tester) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: _viewportHeight,
+            child: TwoDimensionListView(
+              verticalLayout: true,
+              viewportHeight: _viewportHeight,
+              size: (rowHeight: _rowHeight, colWidth: 0),
+              gap: (row: _groupGap, col: _itemGap),
+              itemCount: (row: 1, col: (_) => 4),
+              onSelect: (position) =>
+                  selected = '${position.row}-${position.col}',
+              itemBuilder: (context, position, isSelected) => SizedBox(
+                key: _key(position.row, position.col),
+                height: _rowHeight,
+                child: Text('${position.row}-${position.col}'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(_key(0, 2)));
+    await tester.pumpAndSettle();
+
+    expect(selected, '0-2');
+  });
+
+  testWidgets('触屏长按调用长按回调且不会误触发普通选择', (tester) async {
+    String? selected;
+    String? longSelected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: _viewportHeight,
+            child: TwoDimensionListView(
+              verticalLayout: true,
+              viewportHeight: _viewportHeight,
+              size: (rowHeight: _rowHeight, colWidth: 0),
+              gap: (row: _groupGap, col: _itemGap),
+              itemCount: (row: 1, col: (_) => 4),
+              onSelect: (position) =>
+                  selected = '${position.row}-${position.col}',
+              onLongSelect: (position) =>
+                  longSelected = '${position.row}-${position.col}',
+              itemBuilder: (context, position, isSelected) => SizedBox(
+                key: _key(position.row, position.col),
+                height: _rowHeight,
+                child: Text('${position.row}-${position.col}'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byKey(_key(0, 2)));
+    await tester.pumpAndSettle();
+
+    expect(longSelected, '0-2');
+    expect(selected, isNull);
+  });
+
+  testWidgets('触屏拖动列表仍可滚动且不会误触发频道选择', (tester) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: _viewportHeight,
+            child: TwoDimensionListView(
+              verticalLayout: true,
+              viewportHeight: _viewportHeight,
+              size: (rowHeight: _rowHeight, colWidth: 0),
+              gap: (row: _groupGap, col: _itemGap),
+              itemCount: (row: 1, col: (_) => _colCount),
+              onSelect: (position) =>
+                  selected = '${position.row}-${position.col}',
+              itemBuilder: (context, position, isSelected) => SizedBox(
+                key: _key(position.row, position.col),
+                height: _rowHeight,
+                child: Text('${position.row}-${position.col}'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -220));
+    await tester.pumpAndSettle();
+
+    expect(selected, isNull);
+    expect(find.byKey(_key(0, 0)), findsNothing);
+  });
 }

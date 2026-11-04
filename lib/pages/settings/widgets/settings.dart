@@ -151,7 +151,10 @@ class _SettingsMainState extends State<SettingsMain> {
   @override
   Widget build(BuildContext context) {
     const itemHeight = 190.0;
-    final itemWidth = 400.w;
+    final screen = MediaQuery.of(context).size;
+    final isCompact = screen.shortestSide < 600;
+    final itemWidth =
+        isCompact ? (screen.width - 32).clamp(240.0, 560.0).toDouble() : 400.w;
 
     return SizedBox(
       height: itemHeight + 20.h,

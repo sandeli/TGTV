@@ -49,4 +49,42 @@ void main() {
     expect(find.byType(QrImportPage), findsNothing);
     await drafts.close();
   });
+
+  testWidgets('触屏点击二维码卡片不关闭，点击空白处返回', (tester) async {
+    final drafts = StreamController<String>.broadcast();
+    final app = MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () {
+              Navigator.of(context).push<void>(
+                PageRouteBuilder<void>(
+                  opaque: false,
+                  pageBuilder: (_, __, ___) => QrImportPage(
+                    serverUrl: 'http://192.168.1.10:10381',
+                    draftValues: drafts.stream,
+                  ),
+                ),
+              );
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(_wrapScreenUtil(app));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImportPage), findsOneWidget);
+
+    await tester.tap(find.text('扫码导入订阅链接'));
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImportPage), findsOneWidget);
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImportPage), findsNothing);
+    await drafts.close();
+  });
 }

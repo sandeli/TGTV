@@ -216,56 +216,58 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
       onKeyEvent: _handleKey,
       maxWidth: widget.maxWidth,
       fontSize: widget.fontSize,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.title,
-            style: AppTheme.text(fg, (widget.fontSize + 8).sp),
-          ),
-          if (widget.subtitle != null) ...[
-            SizedBox(height: 12.h),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              widget.subtitle!,
-              style: AppTheme.text(
-                  AppTheme.fgFaded(context, AppTheme.oSecondary),
-                  widget.fontSize.sp),
+              widget.title,
+              style: AppTheme.text(fg, (widget.fontSize + 8).sp),
             ),
-          ],
-          SizedBox(height: 20.h),
-          _buildField(),
-          if (_saveError != null) ...[
-            SizedBox(height: 12.h),
-            Text(
-              _saveError!,
-              style: AppTheme.text(
-                AppTheme.error(context),
-                widget.fontSize.sp,
-                weight: FontWeight.w600,
+            if (widget.subtitle != null) ...[
+              SizedBox(height: 12.h),
+              Text(
+                widget.subtitle!,
+                style: AppTheme.text(
+                    AppTheme.fgFaded(context, AppTheme.oSecondary),
+                    widget.fontSize.sp),
               ),
+            ],
+            SizedBox(height: 20.h),
+            _buildField(),
+            if (_saveError != null) ...[
+              SizedBox(height: 12.h),
+              Text(
+                _saveError!,
+                style: AppTheme.text(
+                  AppTheme.error(context),
+                  widget.fontSize.sp,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ],
+            SizedBox(height: 20.h),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 16.w,
+              runSpacing: 8.h,
+              children: [
+                for (var i = 0; i < _buttonNodes.length; i++)
+                  TextButton(
+                    focusNode: _buttonNodes[i],
+                    onPressed: _buttons[i].onPressed,
+                    style: _actionButtonStyle(),
+                    child: Text(
+                      _isSaving && _buttons[i].label == '保存'
+                          ? '正在保存…'
+                          : _buttons[i].label,
+                    ),
+                  ),
+              ],
             ),
           ],
-          SizedBox(height: 20.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              for (var i = 0; i < _buttonNodes.length; i++) ...[
-                if (i > 0) SizedBox(width: 16.w),
-                TextButton(
-                  focusNode: _buttonNodes[i],
-                  onPressed: _buttons[i].onPressed,
-                  style: _actionButtonStyle(),
-                  child: Text(
-                    _isSaving && _buttons[i].label == '保存'
-                        ? '正在保存…'
-                        : _buttons[i].label,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -279,6 +281,9 @@ class _TvTextEditDialogState extends State<TvTextEditDialog>
       // 编辑态自然要高亮；非编辑态下随焦点环是否落在输入框上
       active: tvEditing || _focusIndex == _fieldIndex,
       editing: tvEditing,
+      onActivate: tvEditing ? null : tvEnterEditing,
+      enableInteractiveSelection:
+          MediaQuery.of(context).size.shortestSide < 600,
       onChanged: (_) {
         if (_saveError != null) setState(() => _saveError = null);
       },

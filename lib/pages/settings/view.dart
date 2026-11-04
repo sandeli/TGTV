@@ -58,6 +58,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.of(context).size.shortestSide < 600;
     // ESC、系统返回与遮罩交给公共电视弹层处理，与 PanelPage、二维码页一致。
     return TvModalScaffold(
       child: Listener(
@@ -70,7 +71,9 @@ class _SettingsPageState extends State<SettingsPage> {
               right: 0,
               child: SafeArea(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 40).r,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 16 : 40,
+                  ).r,
                   child: DefaultTextStyle(
                     style: const TextStyle(decoration: TextDecoration.none),
                     child: Column(
@@ -85,6 +88,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
+            if (isCompact)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: SafeArea(
+                  child: IconButton(
+                    tooltip: '关闭设置',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

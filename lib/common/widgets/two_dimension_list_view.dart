@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player_example/common/widgets/delay_renderer.dart';
@@ -464,6 +463,8 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
       focusNode: _focusNode,
       row: row,
       col: col,
+      onSelect: widget.onSelect,
+      onLongSelect: widget.onLongSelect,
       builder: (context, position, isSelected) => widget
           .itemBuilder(context, position, isSelected)
           .delayed(enable: DebugSettings.delayRender),
@@ -698,13 +699,17 @@ class _SelectableTile extends StatefulWidget {
     required this.focusNode,
     required this.row,
     required this.col,
+    required this.onSelect,
+    required this.onLongSelect,
     required this.builder,
   });
 
-  final ValueListenable<({int row, int col})> position;
+  final ValueNotifier<({int row, int col})> position;
   final FocusNode focusNode;
   final int row;
   final int col;
+  final void Function(({int row, int col}) position)? onSelect;
+  final void Function(({int row, int col}) position)? onLongSelect;
   final Widget Function(
           BuildContext context, ({int row, int col}) position, bool isSelected)
       builder;
@@ -761,6 +766,23 @@ class _SelectableTileState extends State<_SelectableTile> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      widget.builder(context, (row: widget.row, col: widget.col), _selected);
+  Widget build(BuildContext context) {
+    final position = (row: widget.row, col: widget.col);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        widget.position.value = position;
+        widget.focusNode.requestFocus();
+        widget.onSelect?.call(position);
+      },
+      onLongPress: widget.onLongSelect == null
+          ? null
+          : () {
+              widget.position.value = position;
+              widget.focusNode.requestFocus();
+              widget.onLongSelect?.call(position);
+            },
+      child: widget.builder(context, position, _selected),
+    );
+  }
 }

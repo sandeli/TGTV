@@ -188,6 +188,8 @@ class TvDialogField extends StatelessWidget {
     this.leading,
     this.onChanged,
     this.onSubmitted,
+    this.onActivate,
+    this.enableInteractiveSelection = false,
     this.horizontalPadding = 12,
     this.verticalPadding = 8,
   });
@@ -210,6 +212,8 @@ class TvDialogField extends StatelessWidget {
 
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onActivate;
+  final bool enableInteractiveSelection;
 
   /// 水平/垂直内边距（设计稿单位）
   final double horizontalPadding;
@@ -225,8 +229,7 @@ class TvDialogField extends StatelessWidget {
       textInputAction: TextInputAction.done,
       onSubmitted: onSubmitted,
       onChanged: onChanged,
-      // 订阅链接由电视遥控器/键盘输入，避免手机专用文本选择控制。
-      enableInteractiveSelection: false,
+      enableInteractiveSelection: enableInteractiveSelection,
       enableSuggestions: false,
       autocorrect: false,
       decoration: InputDecoration.collapsed(
@@ -237,30 +240,34 @@ class TvDialogField extends StatelessWidget {
       style: AppTheme.text(fg, fontSize.sp),
     );
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.dialogFieldFill,
-        border: Border.all(
-          color: active ? AppTheme.dialogFocus : AppTheme.dialogOutline,
-          width: active ? 3 : 1.5,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: editing ? null : onActivate,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.dialogFieldFill,
+          border: Border.all(
+            color: active ? AppTheme.dialogFocus : AppTheme.dialogOutline,
+            width: active ? 3 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8).r,
         ),
-        borderRadius: BorderRadius.circular(8).r,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding.w,
-        vertical: verticalPadding.h,
-      ),
-      child: IgnorePointer(
-        ignoring: !editing,
-        child: leading == null
-            ? field
-            : Row(
-                children: [
-                  leading!,
-                  SizedBox(width: 8.w),
-                  Expanded(child: field),
-                ],
-              ),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding.w,
+          vertical: verticalPadding.h,
+        ),
+        child: IgnorePointer(
+          ignoring: !editing,
+          child: leading == null
+              ? field
+              : Row(
+                  children: [
+                    leading!,
+                    SizedBox(width: 8.w),
+                    Expanded(child: field),
+                  ],
+                ),
+        ),
       ),
     );
   }

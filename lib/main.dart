@@ -16,6 +16,22 @@ import 'common/widgets/delay_renderer.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 手机作为直播播放器启动时直接横屏铺满观看；电视/盒子继续遵循设备方向。
+  final views = WidgetsBinding.instance.platformDispatcher.views;
+  if (views.isNotEmpty && views.first.devicePixelRatio > 0) {
+    final view = views.first;
+    final logicalSize = Size(
+      view.physicalSize.width / view.devicePixelRatio,
+      view.physicalSize.height / view.devicePixelRatio,
+    );
+    if (logicalSize.shortestSide < 600) {
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+  }
+
   // 小白条、导航栏沉浸
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -133,15 +149,54 @@ class UnsafeDeviceApp extends StatelessWidget {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Size get _designSize {
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) return const Size(1920, 1080);
+    final view = views.first;
+    final ratio = view.devicePixelRatio;
+    if (ratio <= 0) return const Size(1920, 1080);
+    final logicalSize = Size(
+      view.physicalSize.width / ratio,
+      view.physicalSize.height / ratio,
+    );
+    // 手机按当前方向的逻辑尺寸缩放，避免 1920×1080 电视稿把控件缩得过小；
+    // 屏幕旋转时由 didChangeMetrics 重新计算，电视仍使用原设计画布。
+    return logicalSize.shortestSide < 600
+        ? logicalSize
+        : const Size(1920, 1080);
+  }
 
   @override
   Widget build(BuildContext context) {
     const colorScheme = ColorScheme.dark(background: Colors.black);
     return ScreenUtilInit(
-      // 固定以电视画布缩放；不提供手机专用设计稿或窄屏布局。
-      designSize: const Size(1920, 1080),
+      designSize: _designSize,
       minTextAdapt: true,
       child: RestartWidget(
         child: MaterialApp(
