@@ -26,9 +26,13 @@ Iptv _channel({
       tvgName: name,
     );
 
-Widget _app({bool usePanelPage = false, bool useSettingsPage = false}) {
+Widget _app({
+  bool usePanelPage = false,
+  bool useSettingsPage = false,
+  Size designSize = const Size(1920, 1080),
+}) {
   return ScreenUtilInit(
-    designSize: const Size(1920, 1080),
+    designSize: designSize,
     minTextAdapt: true,
     child: MaterialApp(
       theme: ThemeData.dark(),
@@ -133,6 +137,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  void setCompactScreen(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   testWidgets('一级分类与对应二级频道同时显示，遥控器切换分类', (tester) async {
     setScreen(tester);
     await tester.pumpWidget(_app());
@@ -156,6 +167,38 @@ void main() {
     expect(find.text('二级菜单 · 体育组'), findsOneWidget);
     expect(find.text('体育频道一'), findsOneWidget);
     expect(find.text('新闻频道一'), findsNothing);
+  });
+
+  testWidgets('手机横屏两级菜单尺寸紧凑且同时可见', (tester) async {
+    setCompactScreen(tester);
+    await tester.pumpWidget(
+      _app(usePanelPage: true, designSize: const Size(800, 360)),
+    );
+    await tester.tap(find.text('打开菜单'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    expect(find.text('频道分类'), findsOneWidget);
+    expect(find.text('二级菜单 · 新闻组'), findsOneWidget);
+    expect(find.text('新闻频道一'), findsOneWidget);
+
+    final categoryPane = find.byWidgetPredicate(
+      (widget) =>
+          widget is Container && widget.color == AppTheme.categoryMenuSurface,
+    );
+    expect(tester.getSize(categoryPane).width, lessThanOrEqualTo(210));
+
+    final categoryTile = find
+        .ancestor(
+          of: find.text('新闻组'),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first;
+    expect(tester.getSize(categoryTile).height, inInclusiveRange(48, 61));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('当前焦点在一级分类和二级频道时都有醒目的描边', (tester) async {

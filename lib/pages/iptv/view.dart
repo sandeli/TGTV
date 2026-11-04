@@ -15,6 +15,7 @@ import 'package:video_player_example/pages/panel/widgets/iptv_info.dart';
 import 'package:video_player_example/pages/iptv/widgets/playback_corner_overlay.dart';
 import 'package:video_player_example/pages/iptv/widgets/iptv_player_panel_builder.dart';
 import 'package:collection/collection.dart';
+import 'widgets/mobile_menu_touch_zone.dart';
 
 import '../../common/utils/debounce.dart';
 
@@ -324,7 +325,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     return Scaffold(
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onTap: isCompact ? _handleTouchTap : null,
         onLongPress: isCompact ? _openSettings : null,
         onVerticalDragEnd: isCompact ? _handleTouchSwipe : null,
         child: Container(
@@ -337,7 +337,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
               _buildKeyboardListener(),
               _buildChannelSelect(),
               _buildListPlaceholder(),
-              if (isCompact) _buildTouchMenuButton(),
+              if (isCompact) MobileMenuTouchZone(onTap: _handleTouchTap),
             ],
           ),
         ),
@@ -374,33 +374,6 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
     final changeToNext = swipedUp == IptvSettings.channelChangeFlip;
     iptvStore.currentIptv =
         changeToNext ? iptvStore.getNextIptv() : iptvStore.getPrevIptv();
-  }
-
-  Widget _buildTouchMenuButton() {
-    return Positioned(
-      right: 16.w,
-      bottom: 16.h,
-      child: SafeArea(
-        child: Tooltip(
-          message: '点按打开频道面板，长按打开设置',
-          child: Material(
-            color: Colors.black.withOpacity(0.68),
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: _handleTouchTap,
-              onLongPress: _openSettings,
-              child: SizedBox(
-                width: 56.w,
-                height: 56.h,
-                child: Icon(Icons.menu, color: Colors.white, size: 28.sp),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   /// 播放器主界面
@@ -657,7 +630,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
                       width: 1100.w,
                       child: Text(
                         MediaQuery.of(context).size.shortestSide < 600
-                            ? '点按右下角菜单按钮打开设置，在「订阅链接」中粘贴地址；也可用手机扫码导入到电视。支持 M3U、TXT（#genre#）和 XSPF。'
+                            ? '点按屏幕左侧打开菜单，在「订阅链接」中粘贴地址；也可用手机扫码导入到电视。支持 M3U、TXT（#genre#）和 XSPF。'
                             : '用遥控器打开菜单 / 设置 →「订阅链接」→「二维码」。手机与电视连接同一 Wi-Fi，扫码后在网页手动粘贴 M3U、TXT（#genre#）或 XSPF 链接。',
                         textAlign: TextAlign.center,
                         style: AppTheme.text(
@@ -669,7 +642,7 @@ class _IptvPageState extends State<IptvPage> with WidgetsBindingObserver {
                     SizedBox(height: 10.h),
                     Text(
                       MediaQuery.of(context).size.shortestSide < 600
-                          ? '检查订阅链接与网络后，点按右下角菜单按钮重试'
+                          ? '检查订阅链接与网络后，点按屏幕左侧重试'
                           : '检查订阅链接与网络后，按 OK 键重试',
                       style: AppTheme.text(
                           AppTheme.fgFaded(context, AppTheme.oTertiary), 22.sp),

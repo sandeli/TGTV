@@ -117,12 +117,17 @@ class _PanelPageState extends State<PanelPage> {
           SafeArea(
             bottom: false,
             child: SizedBox(
-              height: 52.h,
+              height: 44.h,
               child: Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
                   tooltip: '关闭频道面板',
                   onPressed: () => Navigator.of(context).pop(),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 44, minHeight: 44),
+                  iconSize: 20.sp,
                   icon: const Icon(Icons.close),
                 ),
               ),

@@ -28,6 +28,8 @@ class _PanelIptvListState extends State<PanelIptvList> {
   bool _channelsFocused = false;
   String? _selectedGroupName;
 
+  bool get _isCompact => MediaQuery.of(context).size.shortestSide < 600;
+
   int get _sourceCount => iptvStore.currentSources.length;
   bool get _hasSourceSwitch => _sourceCount > 1;
 
@@ -98,8 +100,15 @@ class _PanelIptvListState extends State<PanelIptvList> {
             item.tvgName == iptvStore.currentIptv.tvgName);
         final initialChannelPosition =
             currentChannelIndex < 0 ? 0 : currentChannelIndex;
-        final leftWidth =
-            (constraints.maxWidth * 0.34).clamp(110.w, 300.w).toDouble();
+        final leftWidth = _isCompact
+            ? (constraints.maxWidth * 0.3).clamp(104.0, 210.0).toDouble()
+            : (constraints.maxWidth * 0.34).clamp(110.w, 300.w).toDouble();
+        final rowHeight = _isCompact
+            ? (constraints.maxHeight * 0.18).clamp(48.0, 60.0).toDouble()
+            : 82.h;
+        final rowGap = _isCompact ? 5.0 : 8.h;
+        final categoryHeaderHeight = _isCompact ? 27.0 : 36.h;
+        final channelHeaderHeight = _isCompact ? 40.0.h : 48.h;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -114,11 +123,12 @@ class _PanelIptvListState extends State<PanelIptvList> {
                 verticalLayout: true,
                 viewportHeight: constraints.maxHeight,
                 initialPosition: (row: categoryPosition, col: 0),
-                size: (rowHeight: 82.h, colWidth: 0),
+                size: (rowHeight: rowHeight, colWidth: 0),
                 scrollOffset: (row: 0, col: 0),
-                gap: (row: 8.h, col: 4.h),
-                headerHeightBuilder: (row) =>
-                    row == 0 || row == _firstGroupRow ? 36.h : 0,
+                gap: (row: rowGap, col: 4.h),
+                headerHeightBuilder: (row) => row == 0 || row == _firstGroupRow
+                    ? categoryHeaderHeight
+                    : 0,
                 itemCount: (
                   row: categoryCount,
                   col: (_) => 1,
@@ -221,8 +231,11 @@ class _PanelIptvListState extends State<PanelIptvList> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildSectionHeader(
-                      '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
+                    SizedBox(
+                      height: channelHeaderHeight,
+                      child: _buildSectionHeader(
+                        '二级菜单 · ${_showFavorites ? '我的收藏' : (selectedGroup?.name ?? '频道')}',
+                      ),
                     ),
                     Expanded(
                       child:
@@ -238,9 +251,9 @@ class _PanelIptvListState extends State<PanelIptvList> {
                             row: initialChannelPosition,
                             col: 0
                           ),
-                          size: (rowHeight: 82.h, colWidth: 0),
+                          size: (rowHeight: rowHeight, colWidth: 0),
                           scrollOffset: (row: 0, col: 0),
-                          gap: (row: 8.h, col: 4.h),
+                          gap: (row: rowGap, col: 4.h),
                           headerHeightBuilder: (_) => 0,
                           itemCount: (
                             row: channelList.isEmpty ? 1 : channelList.length,
@@ -303,12 +316,15 @@ class _PanelIptvListState extends State<PanelIptvList> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: EdgeInsets.only(left: 12.w, bottom: 8.h),
+      padding: EdgeInsets.only(
+        left: _isCompact ? 10.w : 12.w,
+        bottom: _isCompact ? 4.h : 8.h,
+      ),
       child: Align(
         alignment: Alignment.bottomLeft,
         child: Text(
           title,
-          style: AppTheme.text(AppTheme.fg(context), 24.sp,
+          style: AppTheme.text(AppTheme.fg(context), _isCompact ? 16.sp : 24.sp,
               weight: FontWeight.bold),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -326,14 +342,18 @@ class _PanelIptvListState extends State<PanelIptvList> {
   }) {
     final showFocus = isSelected && isFocused;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(
+        horizontal: _isCompact ? 8.w : 12.w,
+        vertical: _isCompact ? 4.h : 8.h,
+      ),
       decoration: BoxDecoration(
         color: isSelected ? AppTheme.tileFill(context, true) : unselectedFill,
-        borderRadius:
-            squareCorners ? BorderRadius.zero : BorderRadius.circular(10).r,
+        borderRadius: squareCorners
+            ? BorderRadius.zero
+            : BorderRadius.circular(_isCompact ? 8 : 10).r,
         border: Border.all(
           color: showFocus ? AppTheme.iptvMenuFocus : Colors.transparent,
-          width: 3,
+          width: _isCompact ? 2 : 3,
         ),
         boxShadow: showFocus
             ? const [
@@ -365,15 +385,17 @@ class _PanelIptvListState extends State<PanelIptvList> {
         children: [
           Text(
             title,
-            style: AppTheme.text(AppTheme.tileText(context, isSelected), 26.sp),
+            style: AppTheme.text(AppTheme.tileText(context, isSelected),
+                _isCompact ? 18.sp : 26.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: 3.h),
+          SizedBox(height: _isCompact ? 2.h : 3.h),
           Text(
             subtitle,
             style: AppTheme.text(
-                AppTheme.tileTextFaded(context, isSelected, 0.7), 18.sp),
+                AppTheme.tileTextFaded(context, isSelected, 0.7),
+                _isCompact ? 12.sp : 18.sp),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -395,13 +417,14 @@ class _PanelIptvListState extends State<PanelIptvList> {
       child: Row(
         children: [
           Icon(icon,
-              color: AppTheme.tileText(context, isSelected), size: 24.sp),
-          SizedBox(width: 8.w),
+              color: AppTheme.tileText(context, isSelected),
+              size: _isCompact ? 18.sp : 24.sp),
+          SizedBox(width: _isCompact ? 5.w : 8.w),
           Expanded(
             child: Text(
               label,
-              style:
-                  AppTheme.text(AppTheme.tileText(context, isSelected), 22.sp),
+              style: AppTheme.text(AppTheme.tileText(context, isSelected),
+                  _isCompact ? 16.sp : 22.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -428,7 +451,8 @@ class _PanelIptvListState extends State<PanelIptvList> {
         child: Text(
           message,
           style: AppTheme.text(
-              AppTheme.tileTextFaded(context, isSelected, 0.75), 22.sp),
+              AppTheme.tileTextFaded(context, isSelected, 0.75),
+              _isCompact ? 15.sp : 22.sp),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -450,30 +474,31 @@ class _PanelIptvListState extends State<PanelIptvList> {
       child: Row(
         children: [
           SizedBox(
-            width: 38.w,
+            width: _isCompact ? 28.w : 38.w,
             child: Text(
               iptv.channel.toString(),
               textAlign: TextAlign.center,
               style: AppTheme.text(
-                  AppTheme.tileTextFaded(context, isSelected, 0.75), 20.sp),
+                  AppTheme.tileTextFaded(context, isSelected, 0.75),
+                  _isCompact ? 13.sp : 20.sp),
               maxLines: 1,
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: _isCompact ? 6.w : 10.w),
           Observer(
             builder: (_) => Icon(
               iptvStore.isFavorite(iptv) ? Icons.star_rounded : Icons.live_tv,
-              size: 23.sp,
+              size: _isCompact ? 17.sp : 23.sp,
               color: iptvStore.isFavorite(iptv)
                   ? (isSelected ? Colors.amber.shade700 : Colors.amber)
                   : AppTheme.tileTextFaded(context, isSelected, 0.65),
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: _isCompact ? 6.w : 10.w),
           Expanded(
             child: Text(
               iptv.name,
-              style: AppTheme.text(color, 27.sp),
+              style: AppTheme.text(color, _isCompact ? 18.sp : 27.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
