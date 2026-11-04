@@ -23,6 +23,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
   /// 一级菜单包含收藏、用户播放列表分类，以及源切换/设置操作。
   static const int _favoriteRow = 0;
   static const int _firstGroupRow = 1;
+  static const int _channelFocusAnchorIndex = 5;
 
   bool _showFavorites = false;
   bool _channelsFocused = false;
@@ -247,6 +248,7 @@ class _PanelIptvListState extends State<PanelIptvList> {
                           autofocus: _channelsFocused,
                           verticalLayout: true,
                           viewportHeight: channelConstraints.maxHeight,
+                          verticalFocusAnchorIndex: _channelFocusAnchorIndex,
                           initialPosition: (
                             row: initialChannelPosition,
                             col: 0
@@ -339,20 +341,35 @@ class _PanelIptvListState extends State<PanelIptvList> {
     required Widget child,
   }) {
     final showFocus = isSelected && isFocused;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: _isCompact ? 8.w : 12.w,
-        vertical: _isCompact ? 4.h : 8.h,
-      ),
-      decoration: BoxDecoration(
-        color: unselectedFill,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(
-          color: showFocus ? AppTheme.iptvMenuFocusOutline : Colors.transparent,
-          width: _isCompact ? 2 : 3,
+    return Transform.translate(
+      offset: showFocus ? const Offset(0, -2) : Offset.zero,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: _isCompact ? 8.w : 12.w,
+          vertical: _isCompact ? 4.h : 8.h,
         ),
+        decoration: BoxDecoration(
+          color: unselectedFill,
+          borderRadius: BorderRadius.zero,
+          border: Border.all(
+            color:
+                showFocus ? AppTheme.iptvMenuFocusOutline : Colors.transparent,
+            width: _isCompact ? 2 : 3,
+          ),
+          // 白色柔光模拟轻微悬浮，不增加深色阴影或实心选中底色。
+          boxShadow: showFocus
+              ? const [
+                  BoxShadow(
+                    color: Color(0x33FFFFFF),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 

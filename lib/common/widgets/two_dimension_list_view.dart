@@ -24,6 +24,7 @@ class TwoDimensionListView extends StatefulWidget {
     this.onArrowRight,
     this.verticalLayout = false,
     this.viewportHeight,
+    this.verticalFocusAnchorIndex,
   });
 
   /// 初始位置
@@ -74,6 +75,9 @@ class TwoDimensionListView extends StatefulWidget {
   /// 竖向布局时每行的高度限制（等于父容器视口高度）
   final double? viewportHeight;
 
+  /// 竖向单列列表的焦点锚点行（从 0 开始）；到达列表底部后焦点可继续下移。
+  final int? verticalFocusAnchorIndex;
+
   @override
   State<TwoDimensionListView> createState() => _TwoDimensionListViewState();
 }
@@ -111,6 +115,9 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
 
   /// 垂直滚动控制器
   late final ScrollController _verticalScrollController;
+
+  /// 锚定模式开始时的频道行，初始焦点可能不是列表第一项。
+  late int _verticalFocusAnchorStartRow;
 
   /// 水平滚动控制器
   late final ScrollController _horizontalScrollController;
@@ -179,7 +186,23 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
         // 切换分组时滚动到适当位置
         double offset;
         final colCount = widget.itemCount.col(row);
-        if (colCount > 1 && col == colCount - 1) {
+        final focusAnchor = widget.verticalFocusAnchorIndex;
+        if (focusAnchor != null && colCount == 1) {
+          if (row < _verticalFocusAnchorStartRow) {
+            _verticalFocusAnchorStartRow = row;
+          }
+          final relativeRow = row - _verticalFocusAnchorStartRow;
+          final visibleRow = relativeRow <= 0
+              ? 0
+              : relativeRow < focusAnchor
+                  ? relativeRow
+                  : focusAnchor;
+          // 前几项让焦点逐行下移；超过锚点后焦点留在屏幕第六行、内容滚动。
+          // offset 最终会被滚动范围夹住，因此到达列表底部时焦点会继续往下走。
+          offset = _getVerticalScrollOffset(row) -
+              _topPadding -
+              visibleRow * (widget.size.rowHeight + widget.gap.row);
+        } else if (colCount > 1 && col == colCount - 1) {
           // 跳到分组最后一条时，滚动到分组底部
           final groupEnd = _getVerticalScrollOffset(row + 1);
           offset =
@@ -187,13 +210,16 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
         } else {
           offset = _getVerticalScrollOffset(row);
         }
+        final targetOffset = offset
+            .clamp(
+              _verticalScrollController.position.minScrollExtent,
+              _verticalScrollController.position.maxScrollExtent,
+            )
+            .toDouble();
         (jumpTo
-            ? _verticalScrollController.jumpTo(offset)
+            ? _verticalScrollController.jumpTo(targetOffset)
             : _verticalScrollController.animateTo(
-                offset.clamp(
-                  _verticalScrollController.position.minScrollExtent,
-                  _verticalScrollController.position.maxScrollExtent,
-                ),
+                targetOffset,
                 duration: const Duration(milliseconds: 150),
                 curve: Curves.easeOut,
               ));
@@ -296,6 +322,7 @@ class _TwoDimensionListViewState extends State<TwoDimensionListView> {
     super.initState();
     _ownsFocusNode = widget.focusNode == null;
     _focusNode = widget.focusNode ?? FocusNode();
+    _verticalFocusAnchorStartRow = widget.initialPosition.row;
     _initData();
   }
 

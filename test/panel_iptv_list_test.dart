@@ -169,6 +169,70 @@ void main() {
     expect(find.text('新闻频道一'), findsNothing);
   });
 
+  testWidgets('二级频道焦点到第六项后固定位置滚动，列表末尾继续向下到最后一项', (tester) async {
+    setScreen(tester);
+    final channels = List<Iptv>.generate(
+      16,
+      (index) => _channel(
+        idx: index,
+        channel: index + 1,
+        groupIdx: 0,
+        name: '长频道$index',
+      ),
+    );
+    final store = GetIt.I<IptvStore>();
+    store.iptvGroupList = [IptvGroup(idx: 0, name: '长列表', list: channels)];
+    store.currentIptv = channels.first;
+
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('打开菜单'));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+
+    for (var index = 0; index < 5; index++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      (_tileDecoration(tester, '长频道5').border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+    final sixthSlotY = tester.getTopLeft(find.text('长频道5')).dy;
+    expect(
+      sixthSlotY,
+      greaterThan(tester.getTopLeft(find.text('长频道4')).dy),
+      reason: '到达第六项前，焦点应随按键逐项向下移动',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('长频道6')).dy,
+      closeTo(sixthSlotY, 3),
+      reason: '超过第六项后焦点应停在原位并滚动频道内容',
+    );
+    expect(
+      (_tileDecoration(tester, '长频道6').border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+
+    for (var index = 7; index < channels.length; index++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      (_tileDecoration(tester, '长频道15').border! as Border).top.color,
+      AppTheme.iptvMenuFocusOutline,
+    );
+    expect(
+      tester.getTopLeft(find.text('长频道15')).dy,
+      greaterThan(sixthSlotY),
+      reason: '滚动到列表底部后，焦点应随屏幕剩余频道继续下移到末项',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('手机横屏两级菜单尺寸紧凑且同时可见', (tester) async {
     setCompactScreen(tester);
     await tester.pumpWidget(
@@ -214,13 +278,16 @@ void main() {
     );
     expect(decoration.color, AppTheme.categoryMenuTileFill);
     expect(decoration.borderRadius, BorderRadius.zero);
-    expect(decoration.boxShadow, isNull);
+    expect(decoration.boxShadow, hasLength(1));
+    expect(decoration.boxShadow!.single.color, const Color(0x33FFFFFF));
+    expect(decoration.boxShadow!.single.offset, const Offset(0, 2));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
 
     decoration = _tileDecoration(tester, '新闻组');
     expect((decoration.border! as Border).top.color, Colors.transparent);
+    expect(decoration.boxShadow, isNull);
 
     decoration = _tileDecoration(tester, '新闻频道一');
     expect(
@@ -229,7 +296,8 @@ void main() {
     );
     expect(decoration.color, AppTheme.channelMenuTileFill);
     expect(decoration.borderRadius, BorderRadius.zero);
-    expect(decoration.boxShadow, isNull);
+    expect(decoration.boxShadow, hasLength(1));
+    expect(decoration.boxShadow!.single.color, const Color(0x33FFFFFF));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
@@ -242,7 +310,7 @@ void main() {
       (decoration.border! as Border).top.color,
       AppTheme.iptvMenuFocusOutline,
     );
-    expect(decoration.boxShadow, isNull);
+    expect(decoration.boxShadow, hasLength(1));
   });
 
   testWidgets('一级和二级菜单焦点往返后仍能恢复到频道', (tester) async {
@@ -309,6 +377,10 @@ void main() {
     expect(categoryDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
     expect(channelDecoration.color!.alpha, inInclusiveRange(0x20, 0x40));
     expect(categoryDecoration.color, isNot(channelDecoration.color));
+    expect(
+      categoryDecoration.color!.alpha,
+      lessThan(channelDecoration.color!.alpha),
+    );
     expect(
       (channelDecoration.color!.alpha - categoryDecoration.color!.alpha).abs(),
       lessThanOrEqualTo(0x10),
